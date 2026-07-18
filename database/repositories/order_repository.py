@@ -1,24 +1,19 @@
 from sqlalchemy import select
-from database.models.order import Order
-from database.repositories.base_repository import BaseRepository
-class OrderRepository(BaseRepository):
-    async def create_order(self, order: Order):
-        return await self.add(order)
-    async def get_order(self, order_id: int):
-        result = await self.session.execute(
-            select(Order).where(
-                Order.id == order_id
-            )
-        )
-        return result.scalar_one_or_none()
-
-    async def get_customer_orders(self, customer_id: int):
-        result = await self.session.execute(
-            select(Order).where(
-                Order.customer_id == customer_id
-            )
-        )
-        return result.scalars().all()
-
-    async def update(self):
-        await self.commit()
+from sqlalchemy.ext.asyncio import AsyncSession
+from database.models.order import Order, OrderStatus
+from database.models.order_item import OrderItem
+from utils.helpers import generate_order_number
+class OrderRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+    async def create_order(self, customer_id: int, hotel_id: int, items: list, note: str | None = None,):
+        order = Order(order_number="TEMP", customer_id=customer_id, hotel_id=hotel_id,status=OrderStatus.SUBMITTED, note=note,)
+        self.session.add(order)
+        await self.session.flush()
+        order.order_number = generate_order_number(order.id)
+        for item in items:
+            order_item = OrderItem(order_id=order.id, product_id=item["product_id"],quantity=item["quantity"],)
+            self.session.add(order_item)
+        await self.session.commit()
+        await self.session.refresh(order)
+        return order

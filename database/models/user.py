@@ -57,3 +57,7 @@ class User(Base):
         "Hotel",
         back_populates="users",
     )
+    orders = relationship(
+        "Order",
+        back_populates="customer",
+        cascade="all, delete-orphan",)

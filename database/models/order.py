@@ -6,6 +6,8 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    Column,
+    func,
 )
 from sqlalchemy.orm import (
     Mapped,
@@ -33,30 +35,39 @@ class Order(Base):
     order_number: Mapped[str] = mapped_column(
         String(30),
         unique=True,
+        index=True,
         nullable=False,
     )
     customer_id: Mapped[int] = mapped_column(
         ForeignKey("users.id"),
         nullable=False,
+        index=True,
     )
     hotel_id: Mapped[int] = mapped_column(
         ForeignKey("hotels.id"),
         nullable=False,
+        index=True,
     )
     status: Mapped[OrderStatus] = mapped_column(
         SqlEnum(OrderStatus),
         default=OrderStatus.SUBMITTED,
+        index=True,
     )
     note: Mapped[str | None] = mapped_column(
         String(500),
         nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
-    )
-    customer = relationship("User")
-    hotel = relationship("Hotel")
+    DateTime(timezone=True),
+    server_default=func.now(),
+    nullable=False,
+)
+    customer = relationship(
+        "User",
+        back_populates="orders")
+    hotel = relationship(
+        "Hotel",
+        back_populates="orders")
     items = relationship(
         "OrderItem",
         back_populates="order",

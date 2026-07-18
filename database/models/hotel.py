@@ -41,3 +41,7 @@ class Hotel(Base):
         "User",
         back_populates="hotel",
     )
+    orders = relationship(
+        "Order",
+        back_populates="hotel"
+    )

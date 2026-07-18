@@ -11,3 +11,10 @@ class HotelRepository(BaseRepository):
         return result.scalars().all()
     async def create(self, hotel: Hotel):
         return await self.add(hotel)
+    async def get_by_name(self, name: str):
+        result = await self.session.execute(
+        select(Hotel).where(
+            Hotel.name == name
+        )
+    )
+        return result.scalar_one_or_none()
