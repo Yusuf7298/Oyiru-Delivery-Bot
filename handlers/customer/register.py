@@ -25,21 +25,13 @@ async def phone(message: Message,state: FSMContext,session: AsyncSession,):
             [KeyboardButton(text=hotel.name)])
     await message.answer(
         "Select your hotel:",
-
         reply_markup=ReplyKeyboardMarkup(
-
             keyboard=keyboard,
-
             resize_keyboard=True,
-
         ),
-
     )
-
     await state.set_state(
-
         RegistrationState.hotel
-
     )
 @router.message(RegistrationState.hotel)
 async def hotel_selected(
@@ -47,28 +39,19 @@ async def hotel_selected(
     state: FSMContext,
     session: AsyncSession,
 ):
-
     hotel_repo = HotelRepository(session)
-
     hotel = await hotel_repo.get_by_name(message.text) # type: ignore
-
     if hotel is None:
-
         hotels = await hotel_repo.get_active_hotels()
-
         keyboard = [
             [KeyboardButton(text=h.name)]
             for h in hotels
         ]
-
         await message.answer(
-
             "❌ Please choose a hotel from the list.",
-
             reply_markup=ReplyKeyboardMarkup(
                 keyboard=keyboard,
-                resize_keyboard=True
-            )
+                resize_keyboard=True)
 
         )
 
