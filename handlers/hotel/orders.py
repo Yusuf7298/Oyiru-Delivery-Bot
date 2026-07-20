@@ -16,7 +16,6 @@ async def new_orders(message: Message):
         if not hotel:
             await message.answer("Hotel account not found.")
             return
-
         orders = await repo.get_new_orders(hotel.id)
         print("Orders:", )
         if not orders:
@@ -27,19 +26,12 @@ async def new_orders(message: Message):
             text = (
                 f"🆕 {order.order_number}\n"
                 f"Customer: {order.customer.full_name}\n"
-                f"Status: {order.status.value}\n\n"
-            )
+                f"Status: {order.status.value}\n\n")
             for item in order.items:
                 text += f"• {item.product.name} - {item.quantity} KG\n"
             builder = InlineKeyboardBuilder()
-            builder.button(
-                text="📄 Open Order",
-                callback_data=f"open_order:{order.id}",
-            )
-            await message.answer(
-                text,
-                reply_markup=builder.as_markup()
-            )
+            builder.button(text="📄 Open Order",callback_data=f"open_order:{order.id}",)
+            await message.answer(text,reply_markup=builder.as_markup())
 
 @router.callback_query(F.data.startswith("open_order:"))
 async def open_order(callback: CallbackQuery):
@@ -48,7 +40,6 @@ async def open_order(callback: CallbackQuery):
         repo = OrderRepository(session)
         order = await repo.get_order(order_id)
         text = f"📦 Order #{order.order_number} Customer: {order.customer.full_name}  Status: {order.status.value} Products" # type: ignore
-
         for item in order.items: # type: ignore
             text += f"\n• {item.product.name} - {item.quantity} KG"
 
@@ -81,71 +72,52 @@ async def change_status(callback: CallbackQuery):
         await callback.bot.send_message( # type: ignore
             chat_id=order.customer.telegram_id,
             text=f"""
-📦 Order Update
-
-Order:
-{order.order_number}
-
-New Status:
-{order.status.value}
-"""
+                📦 Order Update
+                Order:
+                {order.order_number}
+                New Status:
+                {order.status.value}
+                """
         )
-
         builder = InlineKeyboardBuilder()
-
         if order.status == OrderStatus.UNDER_REVIEW:
-
             builder.button(
                 text="📦 Inventory Checking",
                 callback_data=f"status:{order.id}:INVENTORY_CHECKING",
             )
-
         elif order.status == OrderStatus.INVENTORY_CHECKING:
-
             builder.button(
                 text="👨‍🍳 Preparing",
                 callback_data=f"status:{order.id}:PREPARING",
             )
-
         elif order.status == OrderStatus.PREPARING:
-
             builder.button(
                 text="📦 Packed",
                 callback_data=f"status:{order.id}:PACKED",
             )
-
         elif order.status == OrderStatus.PACKED:
-
             builder.button(
                 text="🚚 Ready For Delivery",
                 callback_data=f"status:{order.id}:READY_FOR_DELIVERY",
             )
-
         elif order.status == OrderStatus.READY_FOR_DELIVERY:
-
             builder.button(
                 text="🛵 Out For Delivery",
                 callback_data=f"status:{order.id}:OUT_FOR_DELIVERY",
             )
-
         elif order.status == OrderStatus.OUT_FOR_DELIVERY:
-
             builder.button(
                 text="✅ Delivered",
                 callback_data=f"status:{order.id}:DELIVERED",
             )
-
         await callback.message.edit_text( # type: ignore
             f"""
 📦 {order.order_number}
-
 Customer:
 {order.customer.full_name}
-
 Status:
 {order.status.value}
 """,
             reply_markup=builder.as_markup() if builder.buttons else None
         )
-
     await callback.answer("Updated")
