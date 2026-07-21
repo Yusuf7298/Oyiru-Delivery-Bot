@@ -24,3 +24,13 @@ class UserRepository(BaseRepository):
             .options(selectinload(User.hotel))
             .where(User.telegram_id == telegram_id))
         return result.scalar_one_or_none()
+    
+    async def get_delivery_users(self):
+        result = await self.session.execute(
+            select(User)
+                .where(
+                    User.role == "delivery",
+                    User.is_active == True,
+                    )
+                .order_by(User.full_name))
+        return result.scalars().all()

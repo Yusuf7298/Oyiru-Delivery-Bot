@@ -8,6 +8,7 @@ from services.auth_service import AuthService
 from keyboards.customers import customer_menu
 from keyboards.hotel import hotel_menu
 from states.registration import RegistrationState
+from keyboards.delivery import delivery_menu
 
 router = Router()
 @router.message(CommandStart())
@@ -40,3 +41,8 @@ async def start(message: Message, state: FSMContext, session: AsyncSession,):
         await message.answer(
             f"Welcome Admin {user.full_name}!",
         )
+
+    elif user.role == "delivery_partner":
+        await message.answer(
+            f"Welcome {user.full_name}!",
+            reply_markup=delivery_menu(),)

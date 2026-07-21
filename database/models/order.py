@@ -48,6 +48,21 @@ class Order(Base):
         nullable=False,
         index=True,
     )
+    delivery_partner_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=True,
+        index=True,)
+
+    accepted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        )
+
+    delivered_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        )
+    
     status: Mapped[OrderStatus] = mapped_column(
         SqlEnum(OrderStatus),
         default=OrderStatus.SUBMITTED,
@@ -58,16 +73,20 @@ class Order(Base):
         nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
-    DateTime(timezone=True),
-    server_default=func.now(),
-    nullable=False,
-)
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+        )
     customer = relationship(
         "User",
         back_populates="orders")
     hotel = relationship(
         "Hotel",
         back_populates="orders")
+    delivery_partner = relationship(
+        "User",
+        foreign_keys=[delivery_partner_id],
+        )
     items = relationship(
         "OrderItem",
         back_populates="order",
