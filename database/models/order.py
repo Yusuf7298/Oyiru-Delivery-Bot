@@ -60,8 +60,7 @@ class Order(Base):
 
     delivered_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
-        nullable=True,
-        )
+        nullable=True,)
     
     status: Mapped[OrderStatus] = mapped_column(
         SqlEnum(OrderStatus),
@@ -79,6 +78,7 @@ class Order(Base):
         )
     customer = relationship(
         "User",
+        foreign_keys=[customer_id],
         back_populates="orders")
     hotel = relationship(
         "Hotel",
@@ -86,7 +86,8 @@ class Order(Base):
     delivery_partner = relationship(
         "User",
         foreign_keys=[delivery_partner_id],
-        )
+        back_populates="deliveries",)
+    
     items = relationship(
         "OrderItem",
         back_populates="order",

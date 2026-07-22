@@ -1,6 +1,6 @@
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from database.models.user import User
+from database.models.user import User, UserRole
 from database.repositories.base_repository import BaseRepository
 class UserRepository(BaseRepository):
     def __init__(self, session):
@@ -29,7 +29,7 @@ class UserRepository(BaseRepository):
         result = await self.session.execute(
             select(User)
                 .where(
-                    User.role == "delivery",
+                    User.role ==UserRole.DELIVERY,
                     User.is_active == True,
                     )
                 .order_by(User.full_name))

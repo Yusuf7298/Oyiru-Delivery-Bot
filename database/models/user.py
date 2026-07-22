@@ -1,13 +1,22 @@
 from datetime import datetime
+from enum import Enum
 from sqlalchemy import (
     BigInteger,
     Boolean,
     DateTime,
+    Enum as SqlEnum,
     ForeignKey,
     Integer,
-    String,)
+    String,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database.base import Base
+
+class UserRole(str, Enum):
+    CUSTOMER = "customer"
+    HOTEL = "hotel"
+    DELIVERY = "delivery"
+    ADMIN = "admin"
 class User(Base):
     __tablename__ = "users"
     id: Mapped[int] = mapped_column(
@@ -32,9 +41,10 @@ class User(Base):
         String(20),
         nullable=True,
     )
-    role: Mapped[str] = mapped_column(
-        String(30),
-        default="customer",
+    role: Mapped[UserRole] = mapped_column(
+        SqlEnum(UserRole),
+        default=UserRole.CUSTOMER,
+        nullable=False,
     )
     hotel_id: Mapped[int | None] = mapped_column(
         ForeignKey("hotels.id"),
@@ -53,6 +63,7 @@ class User(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
     )
+    
     hotel = relationship(
         "Hotel",
         back_populates="users",
@@ -61,3 +72,8 @@ class User(Base):
         "Order",
         back_populates="customer",
         cascade="all, delete-orphan",)
+    deliveries = relationship(
+        "Order",
+        foreign_keys="Order.delivery_partner_id",
+        back_populates="delivery_partner",
+    )
