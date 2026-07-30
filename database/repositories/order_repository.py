@@ -16,6 +16,7 @@ class OrderRepository(BaseRepository):
                 selectinload(Order.customer),
                 selectinload(Order.hotel),
                 selectinload(Order.items).selectinload(OrderItem.product),
+                selectinload(Order.delivery_partner),
             )
             .where(Order.id == order_id) # type: ignore
         )

@@ -226,12 +226,24 @@ async def notify_customer_status_update(bot: Bot, order, customer_telegram_id: i
     status_msg = _STATUS_MSG.get(order.status, f"Your order status: {order.status.value}")
     driver_line = f"\n🚗 Driver: {order.driver_name}" if order.driver_name else ""
 
+    # When out for delivery, add the delivery partner's contact details if available
+    driver_contact = ""
+    if order.status == OrderStatus.OUT_FOR_DELIVERY:
+        dp = getattr(order, "delivery_partner", None)
+        if dp:
+            driver_contact += f"\n👤 Driver: {dp.full_name}"
+            if getattr(dp, "phone", None):
+                driver_contact += f"\n📞 Phone: {dp.phone}"
+        elif order.driver_name:
+            driver_contact = f"\n👤 Driver: {order.driver_name}"
+
     text = (
         f"🔔 Order Update\n\n"
         f"🆔 Order: `{order.order_number}`\n"
         f"🏨 Hotel: {order.hotel.name if order.hotel else '—'}\n"
         f"📌 Status: {order.status.value}{driver_line}\n"
-        f"⏰ Time: {_now()}\n\n"
+        f"⏰ Time: {_now()}\n"
+        f"{driver_contact}\n"
         f"{status_msg}"
     )
 
