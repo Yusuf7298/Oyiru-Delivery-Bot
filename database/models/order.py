@@ -17,11 +17,9 @@ from sqlalchemy.orm import (
 from database.base import Base
 class OrderStatus(str, Enum):
     SUBMITTED = "Submitted"
-    UNDER_REVIEW = "Under Review"
-    INVENTORY_CHECKING = "Inventory Checking"
+    APPROVED = "Approved"
     PREPARING = "Preparing"
     PACKED = "Packed"
-    READY_FOR_DELIVERY = "Ready For Delivery"
     OUT_FOR_DELIVERY = "Out For Delivery"
     DELIVERED = "Delivered"
     CANCELLED = "Cancelled"
@@ -52,15 +50,23 @@ class Order(Base):
         ForeignKey("users.id"),
         nullable=True,
         index=True,)
+    driver_name: Mapped[str | None] = mapped_column(
+        String(150),
+        nullable=True,
+    )
 
     accepted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
-        )
-
+    )
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     delivered_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
-        nullable=True,)
+        nullable=True,
+    )
     
     status: Mapped[OrderStatus] = mapped_column(
         SqlEnum(OrderStatus),
@@ -68,6 +74,38 @@ class Order(Base):
         index=True,
     )
     note: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+    file_path: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+    telegram_file_id: Mapped[str | None] = mapped_column(
+        String(250),
+        nullable=True,
+    )
+    file_type: Mapped[str | None] = mapped_column(
+        String(50),
+        nullable=True,
+    )
+    original_filename: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+    uploaded_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    rating: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+    )
+    feedback: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+    )
+    returns: Mapped[str | None] = mapped_column(
         String(500),
         nullable=True,
     )
@@ -90,6 +128,11 @@ class Order(Base):
     
     items = relationship(
         "OrderItem",
+        back_populates="order",
+        cascade="all, delete-orphan",
+    )
+    returned_items = relationship(
+        "ReturnedItem",
         back_populates="order",
         cascade="all, delete-orphan",
     )

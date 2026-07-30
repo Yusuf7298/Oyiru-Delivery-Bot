@@ -1,0 +1,48 @@
+from typing import Union
+from aiogram.filters import BaseFilter
+from aiogram.types import Message, CallbackQuery
+from sqlalchemy.ext.asyncio import AsyncSession
+from config.settings import ADMIN_ID # type: ignore
+from database.repositories.user_repository import UserRepository
+
+class RoleFilter(BaseFilter):
+    def __init__(self, allowed_roles: list[str]) -> None:
+        self.allowed_roles = allowed_roles
+
+    async def __call__(
+        self,
+        event: Union[Message, CallbackQuery],
+        session: AsyncSession,
+    ) -> bool:
+        if not event.from_user:
+            return False
+        if "admin" in self.allowed_roles and str(event.from_user.id) == str(ADMIN_ID):
+            return True
+        user_repo = UserRepository(session)
+        user = await user_repo.get_by_telegram_id(event.from_user.id)
+        if user is None:
+            return False
+        if not user.is_active:
+            return False
+        return user.role in self.allowed_roles
+
+
+class IsAdmin(RoleFilter):
+    def __init__(self) -> None:
+        super().__init__(["admin"])
+
+class IsStoreManager(RoleFilter):
+    def __init__(self) -> None:
+        super().__init__(["hotel"])
+
+class IsDelivery(RoleFilter):
+    def __init__(self) -> None:
+        super().__init__(["delivery"])
+
+class IsCustomer(RoleFilter):
+    def __init__(self) -> None:
+        super().__init__(["customer"])
+
+class IsStoreManagerOrAdmin(RoleFilter):
+    def __init__(self) -> None:
+        super().__init__(["hotel", "admin"])

@@ -1,12 +1,30 @@
 from aiogram.types import ReplyKeyboardMarkup
-from aiogram.types import KeyboardButton,InlineKeyboardMarkup
+from aiogram.types import KeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+
 def customer_menu():
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📦 Place Order"),],
-            [KeyboardButton(text="📋 View Orders"),],
-            [KeyboardButton(text="❓ Help"),],],
+            [KeyboardButton(text="📦 Place Order")],
+            [KeyboardButton(text="📋 View Orders")],
+            [KeyboardButton(text="🔄 Report Returned Products")],
+            [KeyboardButton(text="❓ Help")],
+        ],
+        resize_keyboard=True,
+    )
+
+
+def customer_reorder_menu():
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🔁 Repeat Last Order")],
+            [KeyboardButton(text="🧺 New Category Order")],
+            [KeyboardButton(text="📄 Upload New Product List")],
+            [KeyboardButton(text="📋 View Orders")],
+            [KeyboardButton(text="🔄 Report Returned Products")],
+            [KeyboardButton(text="❓ Help")],
+        ],
         resize_keyboard=True,
     )
 

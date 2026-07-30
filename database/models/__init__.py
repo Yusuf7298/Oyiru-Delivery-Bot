@@ -5,3 +5,5 @@ from .product import Product
 from .order import Order
 from .order import OrderStatus
 from .order_item import OrderItem
+from .delivery_partner import DeliveryPartner
+from .returned_item import ReturnedItem

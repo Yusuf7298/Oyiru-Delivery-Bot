@@ -1,5 +1,14 @@
 from aiogram.fsm.state import State, StatesGroup
-class PlaceOrderState(StatesGroup):
-    selecting_categories = State()
-    entering_category_quantities = State()
-    order_summary = State()
+class OrderState(StatesGroup):
+    selecting_categories     = State()
+    entering_quantities      = State()
+    entering_note            = State()
+    reviewing_order          = State()
+    waiting_for_document     = State()
+    reviewing_uploaded_order = State()
+    waiting_for_rating       = State()
+    waiting_for_feedback     = State()
+    waiting_for_returns_post_feedback = State()
+    waiting_for_return_order   = State()   
+    waiting_for_return_desc    = State()  
+    waiting_for_return_photo   = State()

@@ -41,9 +41,9 @@ class User(Base):
         String(20),
         nullable=True,
     )
-    role: Mapped[UserRole] = mapped_column(
-        SqlEnum(UserRole),
-        default=UserRole.CUSTOMER,
+    role: Mapped[str] = mapped_column(
+        String(30),
+        default=UserRole.CUSTOMER.value,
         nullable=False,
     )
     hotel_id: Mapped[int | None] = mapped_column(
@@ -70,10 +70,23 @@ class User(Base):
     )
     orders = relationship(
         "Order",
+        foreign_keys="Order.customer_id",
         back_populates="customer",
         cascade="all, delete-orphan",)
     deliveries = relationship(
         "Order",
         foreign_keys="Order.delivery_partner_id",
         back_populates="delivery_partner",
+    )
+    delivery_profile = relationship(
+        "DeliveryPartner",
+        foreign_keys="DeliveryPartner.user_id",
+        back_populates="user",
+        uselist=False,
+    )
+
+    approved_delivery_partners = relationship(
+        "DeliveryPartner",
+        foreign_keys="DeliveryPartner.approved_by",
+        back_populates="approver",
     )

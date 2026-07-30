@@ -1,4 +1,6 @@
 from logging.config import fileConfig
+import os
+from dotenv import load_dotenv
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from database.base import Base
@@ -9,7 +11,16 @@ from database.models.order_item import OrderItem
 from database.models.category import Category
 from database.models.product import Product
 from alembic import context
+
+load_dotenv()
+
 config = context.config
+
+# Inject DATABASE_URL from environment (overrides alembic.ini placeholder)
+db_url = os.getenv("DATABASE_URL", "")
+# Alembic needs the sync psycopg driver, not asyncpg
+db_url = db_url.replace("postgresql+asyncpg://", "postgresql+psycopg://")
+config.set_main_option("sqlalchemy.url", db_url)
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 target_metadata = Base.metadata
