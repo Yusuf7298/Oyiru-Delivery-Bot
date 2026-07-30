@@ -3,7 +3,7 @@ from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
-from config.settings import ADMIN_ID # type: ignore
+from config.settings import SUPER_ADMIN_IDS # type: ignore
 from services.auth_service import AuthService
 from services.hotel_service import HotelService
 from database.models.user import UserRole
@@ -22,7 +22,7 @@ async def start(message: Message, state: FSMContext, session: AsyncSession) -> N
     await state.clear()
     assert message.from_user is not None
 
-    if str(message.from_user.id) == str(ADMIN_ID):
+    if str(message.from_user.id) in SUPER_ADMIN_IDS:
         await message.answer(
             "👑 Welcome Admin!\n\n"
             "Use /admin to open the admin panel.",

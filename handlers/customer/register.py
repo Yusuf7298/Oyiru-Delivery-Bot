@@ -3,7 +3,7 @@ from aiogram import Router
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
-from config.settings import ADMIN_ID # type: ignore
+from config.settings import SUPER_ADMIN_IDS # type: ignore
 from database.models.user import User
 from database.repositories.user_repository import UserRepository
 from services.auth_service import AuthService
@@ -86,21 +86,26 @@ async def handle_phone(message: Message, state: FSMContext, session: AsyncSessio
             hotel_name = hotel.name
 
     try:
-        await message.bot.send_message( # type: ignore
-            chat_id=int(ADMIN_ID),
-            text=(
-                "🔔 *New Customer Registration Request*\n\n"
-                f"👤 *Name*: {data['full_name']}\n"
-                f"📱 *Phone*: {phone}\n"
-                f"🏨 *Hotel*: {hotel_name}\n"
-                f"🆔 *Telegram ID*: `{message.from_user.id}`\n" # type: ignore
-                f"🏷 *Username*: @{message.from_user.username or 'none'}" # type: ignore
-            ),
-            reply_markup=admin_keyboard,
-            parse_mode="Markdown",
+        notification_text = (
+            "🔔 *New Customer Registration Request*\n\n"
+            f"👤 *Name*: {data['full_name']}\n"
+            f"📱 *Phone*: {phone}\n"
+            f"🏨 *Hotel*: {hotel_name}\n"
+            f"🆔 *Telegram ID*: `{message.from_user.id}`\n" # type: ignore
+            f"🏷 *Username*: @{message.from_user.username or 'none'}" # type: ignore
         )
+        for admin_id in SUPER_ADMIN_IDS:
+            try:
+                await message.bot.send_message( # type: ignore
+                    chat_id=int(admin_id),
+                    text=notification_text,
+                    reply_markup=admin_keyboard,
+                    parse_mode="Markdown",
+                )
+            except Exception as e:
+                logging.error(f"Failed to notify admin {admin_id} of registration: {e}")
     except Exception as e:
-        logging.error(f"Failed to notify admin of registration: {e}")
+        logging.error(f"Failed to send registration notifications: {e}")
 
     await message.answer(
         "📝 Registration submitted!\n\n"

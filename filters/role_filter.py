@@ -2,7 +2,7 @@ from typing import Union
 from aiogram.filters import BaseFilter
 from aiogram.types import Message, CallbackQuery
 from sqlalchemy.ext.asyncio import AsyncSession
-from config.settings import ADMIN_ID # type: ignore
+from config.settings import SUPER_ADMIN_IDS # type: ignore
 from database.repositories.user_repository import UserRepository
 
 class RoleFilter(BaseFilter):
@@ -16,7 +16,8 @@ class RoleFilter(BaseFilter):
     ) -> bool:
         if not event.from_user:
             return False
-        if "admin" in self.allowed_roles and str(event.from_user.id) == str(ADMIN_ID):
+        # Any super admin passes all admin-role checks
+        if "admin" in self.allowed_roles and str(event.from_user.id) in SUPER_ADMIN_IDS:
             return True
         user_repo = UserRepository(session)
         user = await user_repo.get_by_telegram_id(event.from_user.id)
