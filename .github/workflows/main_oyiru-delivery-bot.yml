@@ -25,7 +25,7 @@ jobs:
           python -m venv antenv
           source antenv/bin/activate
           pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements.txt --no-cache-dir -v
 
       - name: Upload artifact for deployment
         uses: actions/upload-artifact@v4
@@ -38,6 +38,8 @@ jobs:
             !.github/
             !__pycache__/
             !*.pyc
+            !uploads/
+            !logs/
 
   deploy:
     runs-on: ubuntu-latest
