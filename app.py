@@ -75,6 +75,21 @@ dp.include_router(customer_returns_router)
 from handlers.common.fallback import router as fallback_router
 dp.include_router(fallback_router)
 
+from aiohttp import web
+
+async def start_health_server() -> None:
+    port = int(os.getenv("PORT") or os.getenv("WEBSITES_PORT") or 8000)
+    app_web = web.Application()
+    async def health_check(request):
+        return web.Response(text="Oyiru Delivery Bot is running OK!")
+    app_web.router.add_get("/", health_check)
+    app_web.router.add_get("/health", health_check)
+    runner = web.AppRunner(app_web)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    logger.info(f"Health check web server running on port {port}")
+
 async def main() -> None:
     setup_logging()
     from config import BOT_TOKEN, DATABASE_URL
@@ -86,7 +101,7 @@ async def main() -> None:
     if missing:
         logger.error(
             f"Missing required environment variables: {', '.join(missing)}. "
-            "Create a .env file with these values and restart."
+            "Create a .env file with these values in Azure Portal Environment Variables and restart."
         )
         raise SystemExit(1)
     import os
@@ -101,6 +116,7 @@ async def main() -> None:
         logger.error(f"uploads/ directory is not writable: {e}")
         raise SystemExit(1)
 
+    await start_health_server()
     logger.info("Bot started — polling")
     await dp.start_polling(bot)
 
@@ -110,3 +126,4 @@ if __name__ == "__main__":
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logger.info("Bot stopped")
+
