@@ -1,4 +1,4 @@
-from __future__ import annotations
+from typing import Optional
 from datetime import datetime
 from sqlalchemy import DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -14,7 +14,7 @@ class ReturnedItem(Base):
     description: Mapped[str] = mapped_column(
         String(1000), nullable=False
     )
-    photo_file_id: Mapped[str | None] = mapped_column(
+    photo_file_id: Mapped[Optional[str]] = mapped_column(
         String(250), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(

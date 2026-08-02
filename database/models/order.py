@@ -1,4 +1,4 @@
-from __future__ import annotations
+from typing import Optional
 from datetime import datetime
 from enum import Enum
 from sqlalchemy import (
@@ -47,24 +47,24 @@ class Order(Base):
         nullable=False,
         index=True,
     )
-    delivery_partner_id: Mapped[int | None] = mapped_column(
+    delivery_partner_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id"),
         nullable=True,
         index=True,)
-    driver_name: Mapped[str | None] = mapped_column(
+    driver_name: Mapped[Optional[str]] = mapped_column(
         String(150),
         nullable=True,
     )
 
-    accepted_at: Mapped[datetime | None] = mapped_column(
+    accepted_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
     )
-    started_at: Mapped[datetime | None] = mapped_column(
+    started_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
     )
-    delivered_at: Mapped[datetime | None] = mapped_column(
+    delivered_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
     )
@@ -74,39 +74,39 @@ class Order(Base):
         default=OrderStatus.SUBMITTED,
         index=True,
     )
-    note: Mapped[str | None] = mapped_column(
+    note: Mapped[Optional[str]] = mapped_column(
         String(500),
         nullable=True,
     )
-    file_path: Mapped[str | None] = mapped_column(
+    file_path: Mapped[Optional[str]] = mapped_column(
         String(500),
         nullable=True,
     )
-    telegram_file_id: Mapped[str | None] = mapped_column(
+    telegram_file_id: Mapped[Optional[str]] = mapped_column(
         String(250),
         nullable=True,
     )
-    file_type: Mapped[str | None] = mapped_column(
+    file_type: Mapped[Optional[str]] = mapped_column(
         String(50),
         nullable=True,
     )
-    original_filename: Mapped[str | None] = mapped_column(
+    original_filename: Mapped[Optional[str]] = mapped_column(
         String(255),
         nullable=True,
     )
-    uploaded_at: Mapped[datetime | None] = mapped_column(
+    uploaded_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
     )
-    rating: Mapped[int | None] = mapped_column(
+    rating: Mapped[Optional[int]] = mapped_column(
         Integer,
         nullable=True,
     )
-    feedback: Mapped[str | None] = mapped_column(
+    feedback: Mapped[Optional[str]] = mapped_column(
         String(500),
         nullable=True,
     )
-    returns: Mapped[str | None] = mapped_column(
+    returns: Mapped[Optional[str]] = mapped_column(
         String(500),
         nullable=True,
     )

@@ -1,4 +1,4 @@
-from __future__ import annotations
+from typing import Optional
 from datetime import datetime
 from sqlalchemy import (
     Boolean,
@@ -24,10 +24,10 @@ class Hotel(Base):
         unique=True,
         nullable=False,
     )
-    address: Mapped[str | None] = mapped_column(
+    address: Mapped[Optional[str]] = mapped_column(
         String(250),
     )
-    phone: Mapped[str | None] = mapped_column(
+    phone: Mapped[Optional[str]] = mapped_column(
         String(30),
     )
     is_active: Mapped[bool] = mapped_column(

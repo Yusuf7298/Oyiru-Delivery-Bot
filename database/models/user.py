@@ -1,4 +1,4 @@
-from __future__ import annotations
+from typing import Optional
 from datetime import datetime
 from enum import Enum
 from sqlalchemy import (
@@ -34,11 +34,11 @@ class User(Base):
         String(150),
         nullable=False,
     )
-    username: Mapped[str | None] = mapped_column(
+    username: Mapped[Optional[str]] = mapped_column(
         String(100),
         nullable=True,
     )
-    phone: Mapped[str | None] = mapped_column(
+    phone: Mapped[Optional[str]] = mapped_column(
         String(20),
         nullable=True,
     )
@@ -47,7 +47,7 @@ class User(Base):
         default=UserRole.CUSTOMER.value,
         nullable=False,
     )
-    hotel_id: Mapped[int | None] = mapped_column(
+    hotel_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("hotels.id"),
         nullable=True,
     )

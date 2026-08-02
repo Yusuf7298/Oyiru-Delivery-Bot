@@ -1,4 +1,4 @@
-from __future__ import annotations
+from typing import Optional
 from datetime import datetime
 from enum import Enum
 from sqlalchemy import (
@@ -56,12 +56,12 @@ class DeliveryPartner(Base):
         nullable=False,
     )
 
-    approved_by: Mapped[int | None] = mapped_column(
+    approved_by: Mapped[Optional[int]] = mapped_column(
         ForeignKey("users.id"),
         nullable=True,
     )
 
-    approved_at: Mapped[datetime | None] = mapped_column(
+    approved_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
     )
