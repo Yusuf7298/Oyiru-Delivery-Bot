@@ -17,9 +17,13 @@ if [ ! -d "/home/site/wwwroot/antenv" ]; then
     python3 -m venv /home/site/wwwroot/antenv
 fi
 
-# Install dependencies
-echo "Installing dependencies..."
-/home/site/wwwroot/antenv/bin/pip install -r requirements.txt
+# Install dependencies ONLY if missing to avoid startup timeout
+if ! /home/site/wwwroot/antenv/bin/python -c "import aiogram" >/dev/null 2>&1; then
+    echo "Installing dependencies..."
+    /home/site/wwwroot/antenv/bin/pip install -r requirements.txt
+else
+    echo "Dependencies already installed. Skipping pip install for instant boot."
+fi
 
 # Run database setup
 echo "Running database setup..."
