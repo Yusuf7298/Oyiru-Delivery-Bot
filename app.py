@@ -117,6 +117,12 @@ async def main() -> None:
         raise SystemExit(1)
 
     await start_health_server()
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+        logger.info("Cleared old Telegram webhooks")
+    except Exception as e:
+        logger.warning(f"Could not delete webhook: {e}")
+
     logger.info("Bot started — polling")
     await dp.start_polling(bot)
 
