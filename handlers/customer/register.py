@@ -1,3 +1,4 @@
+from __future__ import annotations
 import logging
 from aiogram import Router
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
