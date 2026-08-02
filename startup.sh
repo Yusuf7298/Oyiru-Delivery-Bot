@@ -3,30 +3,36 @@ echo "=== Oyiru Delivery Bot Startup ==="
 
 cd /home/site/wwwroot
 
-# Activate virtual environment if available
-if [ -f "/home/site/wwwroot/antenv/bin/activate" ]; then
-    source /home/site/wwwroot/antenv/bin/activate
+# Remove broken virtualenv if interpreter is invalid
+if [ -d "/home/site/wwwroot/antenv" ]; then
+    if ! /home/site/wwwroot/antenv/bin/python --version >/dev/null 2>&1; then
+        echo "Detected broken antenv virtualenv. Rebuilding..."
+        rm -rf /home/site/wwwroot/antenv
+    fi
 fi
 
-# Determine Python binary path
-if [ -f "/home/site/wwwroot/antenv/bin/python3" ]; then
-    PYTHON="/home/site/wwwroot/antenv/bin/python3"
-elif [ -f "/home/site/wwwroot/antenv/bin/python" ]; then
+# Create fresh virtual environment if missing
+if [ ! -d "/home/site/wwwroot/antenv" ]; then
+    echo "Creating fresh virtual environment at /home/site/wwwroot/antenv..."
+    python3 -m venv /home/site/wwwroot/antenv || virtualenv /home/site/wwwroot/antenv || true
+fi
+
+# Set Python and Pip executables
+if [ -f "/home/site/wwwroot/antenv/bin/python" ]; then
     PYTHON="/home/site/wwwroot/antenv/bin/python"
+    PIP="/home/site/wwwroot/antenv/bin/pip"
 else
     PYTHON=$(which python3 || which python)
+    PIP=$(which pip3 || which pip)
 fi
 
-echo "Selected Python: $PYTHON"
+echo "Using Python: $PYTHON"
+echo "Using Pip: $PIP"
 
-# Install dependencies using antenv pip
-if [ -f "/home/site/wwwroot/antenv/bin/pip3" ]; then
-    echo "Installing requirements via antenv pip3..."
-    /home/site/wwwroot/antenv/bin/pip3 install -r requirements.txt
-elif [ -f "/home/site/wwwroot/antenv/bin/pip" ]; then
-    echo "Installing requirements via antenv pip..."
-    /home/site/wwwroot/antenv/bin/pip install -r requirements.txt
-fi
+# Install dependencies into virtualenv
+echo "Installing dependencies from requirements.txt..."
+$PIP install --upgrade pip --quiet || true
+$PIP install -r requirements.txt
 
 # Run database setup
 echo "Running database setup..."
