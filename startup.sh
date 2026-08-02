@@ -12,7 +12,7 @@ fi
 # Ensure pip is installed inside antenv if missing
 if [ ! -f "/home/site/wwwroot/antenv/bin/pip" ]; then
     echo "Installing pip into virtual environment..."
-    curl -sS https://bootstrap.pypa.io/get-pip.py | /home/site/wwwroot/antenv/bin/python3 || true
+    curl -sS https://bootstrap.pypa.io/pip/3.9/get-pip.py | /home/site/wwwroot/antenv/bin/python3 || curl -sS https://bootstrap.pypa.io/get-pip.py | /home/site/wwwroot/antenv/bin/python3 || true
 fi
 
 # Set Python and Pip executables
