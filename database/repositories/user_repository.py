@@ -1,79 +1,88 @@
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
+from typing import List, Optional, Any
 from database.models.user import User, UserRole
+from database.models.hotel import Hotel
 from database.repositories.base_repository import BaseRepository
 
-
 class UserRepository(BaseRepository):
-    def __init__(self, session):
-        self.session = session
-    async def create_user(self, user: User):
+    def __init__(self, session: Any):
+        super().__init__(session)
+
+    async def _populate_hotel(self, user: User) -> User:
+        if user and user.hotel_id and not user.hotel:
+            doc = await self.db["hotels"].find_one({"_id": user.hotel_id})
+            if doc:
+                user.hotel = Hotel.from_dict(doc)
+        return user
+
+    async def create_user(self, user: User) -> User:
         return await self.add(user)
 
-    async def get_customers(self):
-        result = await self.session.execute(
-            select(User)
-            .options(selectinload(User.hotel))
-            .where(User.role == UserRole.CUSTOMER)
-            .order_by(User.full_name)
-        )
-        return result.scalars().all()
+    async def get_customers(self) -> List[User]:
+        cursor = self.db["users"].find({"role": UserRole.CUSTOMER.value}).sort("full_name", 1)
+        users = []
+        async for doc in cursor:
+            user = User.from_dict(doc)
+            await self._populate_hotel(user)
+            users.append(user)
+        return users
 
-    async def get_by_role(self, role: str):
-        result = await self.session.execute(
-            select(User)
-            .where(User.role == role)
-            .order_by(User.full_name)
-        )
-        return result.scalars().all()
+    async def get_by_role(self, role: str) -> List[User]:
+        cursor = self.db["users"].find({"role": role}).sort("full_name", 1)
+        users = []
+        async for doc in cursor:
+            users.append(User.from_dict(doc))
+        return users
 
-    async def get_by_telegram_id(self, telegram_id: int):
-        result = await self.session.execute(
-            select(User)
-            .options(selectinload(User.hotel))
-            .where(User.telegram_id == telegram_id)
-        )
-        return result.scalar_one_or_none()
+    async def get_by_telegram_id(self, telegram_id: int) -> Optional[User]:
+        doc = await self.db["users"].find_one({"telegram_id": telegram_id})
+        if not doc:
+            return None
+        user = User.from_dict(doc)
+        await self._populate_hotel(user)
+        return user
 
-    async def get_delivery_partners(self):
-        result = await self.session.execute(
-            select(User)
-            .where(
-                User.role == UserRole.DELIVERY,
-                User.is_active == True,
-            )
-            .order_by(User.full_name)
-        )
-        return result.scalars().all()
+    async def get_delivery_partners(self) -> List[User]:
+        cursor = self.db["users"].find({
+            "role": UserRole.DELIVERY.value,
+            "is_active": True
+        }).sort("full_name", 1)
+        users = []
+        async for doc in cursor:
+            users.append(User.from_dict(doc))
+        return users
 
-    async def get(self, user_id: int):
-        result = await self.session.execute(
-            select(User).where(User.id == user_id)
-        )
-        return result.scalar_one_or_none()
+    async def get(self, user_id: int) -> Optional[User]:
+        doc = await self.db["users"].find_one({"_id": user_id})
+        if not doc:
+            return None
+        user = User.from_dict(doc)
+        await self._populate_hotel(user)
+        return user
 
-    async def get_all_users(self):
-        result = await self.session.execute(
-            select(User).order_by(User.role, User.full_name)
-        )
-        return result.scalars().all()
+    async def get_all_users(self) -> List[User]:
+        cursor = self.db["users"].find({}).sort([("role", 1), ("full_name", 1)])
+        users = []
+        async for doc in cursor:
+            users.append(User.from_dict(doc))
+        return users
 
-    async def set_role(self, user: User, role: str):
+    async def set_role(self, user: User, role: str) -> User:
         user.role = role
         user.is_active = True
-        await self.session.commit()
+        await self.add(user)
         return user
 
-    async def set_active(self, user: User, active: bool):
+    async def set_active(self, user: User, active: bool) -> User:
         user.is_active = active
-        await self.session.commit()
+        await self.add(user)
         return user
 
-    async def get_active_by_roles(self, roles: list) -> list:
-        """Return all active users matching any of the given roles."""
-        result = await self.session.execute(
-            select(User)
-            .where(User.role.in_(roles), User.is_active == True)
-            .order_by(User.role, User.full_name)
-        )
-        return result.scalars().all() # type: ignore
+    async def get_active_by_roles(self, roles: list) -> List[User]:
+        cursor = self.db["users"].find({
+            "role": {"$in": roles},
+            "is_active": True
+        }).sort([("role", 1), ("full_name", 1)])
+        users = []
+        async for doc in cursor:
+            users.append(User.from_dict(doc))
+        return users

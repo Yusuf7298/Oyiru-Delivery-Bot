@@ -1,24 +1,30 @@
-from typing import Optional
+from typing import Optional, Any, Dict
 from datetime import datetime
-from sqlalchemy import DateTime, ForeignKey, Integer, String, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database.base import Base
+
 class ReturnedItem(Base):
-    __tablename__ = "returned_items"
+    def __init__(
+        self,
+        id: Optional[int] = None,
+        order_id: int = 0,
+        description: str = "",
+        photo_file_id: Optional[str] = None,
+        created_at: Optional[datetime] = None,
+        order: Optional[Any] = None,
+        **kwargs
+    ):
+        super().__init__(**kwargs)
+        self.id = id
+        self.order_id = order_id
+        self.description = description
+        self.photo_file_id = photo_file_id
+        self.created_at = created_at or datetime.utcnow()
+        self.order = order
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-
-    order_id: Mapped[int] = mapped_column(
-        ForeignKey("orders.id"), nullable=False, index=True
-    )
-    description: Mapped[str] = mapped_column(
-        String(1000), nullable=False
-    )
-    photo_file_id: Mapped[Optional[str]] = mapped_column(
-        String(250), nullable=True
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
-
-    order = relationship("Order", back_populates="returned_items")
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "ReturnedItem":
+        if not data:
+            return None # type: ignore
+        d = dict(data)
+        d["id"] = d.get("id") or d.get("_id")
+        return cls(**d)

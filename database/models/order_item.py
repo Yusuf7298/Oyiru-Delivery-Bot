@@ -1,35 +1,29 @@
-from sqlalchemy import (
-    Float,
-    ForeignKey,
-    Integer,
-)
-from sqlalchemy.orm import (
-    Mapped,
-    mapped_column,
-    relationship,
-)
+from typing import Optional, Any, Dict
 from database.base import Base
+
 class OrderItem(Base):
-    __tablename__ = "order_items"
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-    )
-    order_id: Mapped[int] = mapped_column(
-        ForeignKey("orders.id"),
-        nullable=False,
-    )
-    product_id: Mapped[int] = mapped_column(
-        ForeignKey("products.id"),
-        nullable=False,
-    )
-    quantity: Mapped[float] = mapped_column(
-        Float,
-        nullable=False,
-    )
-    order = relationship(
-        "Order",
-        back_populates="items",
-    )
-    product = relationship("Product")
+    def __init__(
+        self,
+        id: Optional[int] = None,
+        order_id: int = 0,
+        product_id: int = 0,
+        quantity: float = 0.0,
+        order: Optional[Any] = None,
+        product: Optional[Any] = None,
+        **kwargs
+    ):
+        super().__init__(**kwargs)
+        self.id = id
+        self.order_id = order_id
+        self.product_id = product_id
+        self.quantity = quantity
+        self.order = order
+        self.product = product
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "OrderItem":
+        if not data:
+            return None # type: ignore
+        d = dict(data)
+        d["id"] = d.get("id") or d.get("_id")
+        return cls(**d)

@@ -1,50 +1,46 @@
-from sqlalchemy import select
+from typing import List, Optional, Any
 from database.models.category import Category
 from database.repositories.base_repository import BaseRepository
 
-
 class CategoryRepository(BaseRepository):
+    def __init__(self, session: Any):
+        super().__init__(session)
 
-    async def get_all(self): # type: ignore
-        result = await self.session.execute(
-            select(Category).order_by(Category.name)
-        )
-        return result.scalars().all()
+    async def get_all(self) -> List[Category]: # type: ignore
+        cursor = self.db["categories"].find({}).sort("name", 1)
+        categories = []
+        async for doc in cursor:
+            categories.append(Category.from_dict(doc))
+        return categories
 
-    async def get_active_categories(self):
-        result = await self.session.execute(
-            select(Category)
-            .where(Category.is_active == True)
-            .order_by(Category.name)
-        )
-        return result.scalars().all()
+    async def get_active_categories(self) -> List[Category]:
+        cursor = self.db["categories"].find({"is_active": True}).sort("name", 1)
+        categories = []
+        async for doc in cursor:
+            categories.append(Category.from_dict(doc))
+        return categories
 
-    async def get_by_id(self, category_id: int):  # type: ignore
-        result = await self.session.execute(
-            select(Category).where(Category.id == category_id)
-        )
-        return result.scalar_one_or_none()
+    async def get_by_id(self, category_id: int) -> Optional[Category]:  # type: ignore
+        doc = await self.db["categories"].find_one({"_id": category_id})
+        return Category.from_dict(doc) if doc else None
 
-    async def get_by_name(self, name: str):
-        result = await self.session.execute(
-            select(Category).where(Category.name == name)
-        )
-        return result.scalar_one_or_none()
+    async def get_by_name(self, name: str) -> Optional[Category]:
+        doc = await self.db["categories"].find_one({"name": name})
+        return Category.from_dict(doc) if doc else None
 
-    async def create(self, category: Category):
+    async def create(self, category: Category) -> Category:
         return await self.add(category)
 
-    async def update(self, category: Category):
-        await self.session.commit()
-        await self.session.refresh(category)
+    async def update(self, category: Category) -> Category:
+        await self.add(category)
         return category
 
-    async def soft_delete(self, category: Category):
+    async def soft_delete(self, category: Category) -> Category:
         category.is_active = False
-        await self.session.commit()
+        await self.add(category)
         return category
 
-    async def activate(self, category: Category):
+    async def activate(self, category: Category) -> Category:
         category.is_active = True
-        await self.session.commit()
+        await self.add(category)
         return category

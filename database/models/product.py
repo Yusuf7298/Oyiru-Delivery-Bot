@@ -1,45 +1,32 @@
+from typing import Optional, Any, Dict
 from datetime import datetime
-from sqlalchemy import (
-    Boolean,
-    DateTime,
-    ForeignKey,
-    Integer,
-    String,
-)
-from sqlalchemy.orm import (
-    Mapped,
-    mapped_column,
-    relationship,
-)
 from database.base import Base
+
 class Product(Base):
-    __tablename__ = "products"
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-    )
-    category_id: Mapped[int] = mapped_column(
-        ForeignKey("categories.id"),
-        nullable=False,
-    )
-    name: Mapped[str] = mapped_column(
-        String(150),
-        nullable=False,
-    )
-    unit: Mapped[str] = mapped_column(
-        String(20),
-        default="KG",
-    )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean,
-        default=True,
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
-    )
-    category = relationship(
-        "Category",
-        back_populates="products",
-    )
+    def __init__(
+        self,
+        id: Optional[int] = None,
+        category_id: int = 0,
+        name: str = "",
+        unit: str = "KG",
+        is_active: bool = True,
+        created_at: Optional[datetime] = None,
+        category: Optional[Any] = None,
+        **kwargs
+    ):
+        super().__init__(**kwargs)
+        self.id = id
+        self.category_id = category_id
+        self.name = name
+        self.unit = unit
+        self.is_active = is_active
+        self.created_at = created_at or datetime.utcnow()
+        self.category = category
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Product":
+        if not data:
+            return None # type: ignore
+        d = dict(data)
+        d["id"] = d.get("id") or d.get("_id")
+        return cls(**d)

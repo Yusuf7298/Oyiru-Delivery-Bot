@@ -155,7 +155,7 @@ async def _save_rating_and_returns(
     order.rating   = rating
     order.feedback = feedback
     order.returns  = returns_text
-    await session.commit()
+    await repo.add(order)
 
     await notify_quality_control(message.bot, order, rating, feedback, returns_text) # type: ignore
 
@@ -193,7 +193,7 @@ async def skip_returns(callback: CallbackQuery, state: FSMContext, session: Asyn
     order.rating   = rating
     order.feedback = feedback
     order.returns  = None
-    await session.commit()
+    await repo.add(order)
     await notify_quality_control(callback.bot, order, rating, feedback, None) # type: ignore
 
     user_repo = UserRepository(session)

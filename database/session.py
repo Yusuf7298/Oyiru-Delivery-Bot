@@ -1,25 +1,32 @@
 import os
-from sqlalchemy.ext.asyncio import (
-    AsyncSession,
-    async_sessionmaker,
-    create_async_engine,
-)
+from motor.motor_asyncio import AsyncIOMotorClient
 from config import DATABASE_URL
 
-engine = create_async_engine(
-    DATABASE_URL, # type: ignore
-    echo=os.getenv("DEV_MODE", "false").lower() == "true",  # SQL logging only in dev
-    future=True,
-    pool_pre_ping=True,   # Re-connects automatically if Neon DB drops idle connections
-    pool_recycle=300,    # Recycles connections every 5 minutes
-    pool_timeout=30,
-)
-AsyncSessionLocal = async_sessionmaker(
-    bind=engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-)
+mongo_uri = DATABASE_URL or "mongodb://localhost:27017"
+db_name = os.getenv("MONGODB_DB_NAME", "oyiru_delivery_bot")
+
+client: AsyncIOMotorClient = AsyncIOMotorClient(mongo_uri)
+db = client[db_name]
+
+class AsyncSessionContext:
+    def __init__(self, database):
+        self.db = database
+    async def __aenter__(self):
+        return self.db
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+def AsyncSessionLocal():
+    return AsyncSessionContext(db)
 
 async def get_db():
-    async with AsyncSessionLocal() as session:
-        yield session
+    yield db
+
+async def get_next_sequence_value(sequence_name: str) -> int:
+    doc = await db["counters"].find_one_and_update(
+        {"_id": sequence_name},
+        {"$inc": {"sequence_value": 1}},
+        upsert=True,
+        return_document=True
+    )
+    return doc["sequence_value"]

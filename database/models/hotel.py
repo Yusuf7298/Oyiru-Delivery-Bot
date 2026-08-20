@@ -1,48 +1,34 @@
-from typing import Optional
+from typing import Optional, Any, Dict
 from datetime import datetime
-from sqlalchemy import (
-    Boolean,
-    DateTime,
-    Integer,
-    String,
-)
-from sqlalchemy.orm import (
-    Mapped,
-    mapped_column,
-    relationship,
-)
 from database.base import Base
+
 class Hotel(Base):
-    __tablename__ = "hotels"
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-    )
-    name: Mapped[str] = mapped_column(
-        String(150),
-        unique=True,
-        nullable=False,
-    )
-    address: Mapped[Optional[str]] = mapped_column(
-        String(250),
-    )
-    phone: Mapped[Optional[str]] = mapped_column(
-        String(30),
-    )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean,
-        default=True,
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
-    )
-    users = relationship(
-        "User",
-        back_populates="hotel",
-    )
-    orders = relationship(
-        "Order",
-        back_populates="hotel"
-    )
+    def __init__(
+        self,
+        id: Optional[int] = None,
+        name: str = "",
+        address: Optional[str] = None,
+        phone: Optional[str] = None,
+        is_active: bool = True,
+        created_at: Optional[datetime] = None,
+        users: Optional[Any] = None,
+        orders: Optional[Any] = None,
+        **kwargs
+    ):
+        super().__init__(**kwargs)
+        self.id = id
+        self.name = name
+        self.address = address
+        self.phone = phone
+        self.is_active = is_active
+        self.created_at = created_at or datetime.utcnow()
+        self.users = users or []
+        self.orders = orders or []
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Hotel":
+        if not data:
+            return None # type: ignore
+        d = dict(data)
+        d["id"] = d.get("id") or d.get("_id")
+        return cls(**d)

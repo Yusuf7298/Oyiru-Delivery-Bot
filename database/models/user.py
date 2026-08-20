@@ -1,16 +1,6 @@
-from typing import Optional
+from typing import Optional, Any, Dict
 from datetime import datetime
 from enum import Enum
-from sqlalchemy import (
-    BigInteger,
-    Boolean,
-    DateTime,
-    Enum as SqlEnum,
-    ForeignKey,
-    Integer,
-    String,
-)
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database.base import Base
 
 class UserRole(str, Enum):
@@ -18,76 +8,60 @@ class UserRole(str, Enum):
     HOTEL = "hotel"
     DELIVERY = "delivery"
     ADMIN = "admin"
-class User(Base):
-    __tablename__ = "users"
-    id: Mapped[int] = mapped_column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-    )
-    telegram_id: Mapped[int] = mapped_column(
-        BigInteger,
-        unique=True,
-        nullable=False,
-    )
-    full_name: Mapped[str] = mapped_column(
-        String(150),
-        nullable=False,
-    )
-    username: Mapped[Optional[str]] = mapped_column(
-        String(100),
-        nullable=True,
-    )
-    phone: Mapped[Optional[str]] = mapped_column(
-        String(20),
-        nullable=True,
-    )
-    role: Mapped[str] = mapped_column(
-        String(30),
-        default=UserRole.CUSTOMER.value,
-        nullable=False,
-    )
-    hotel_id: Mapped[Optional[int]] = mapped_column(
-        ForeignKey("hotels.id"),
-        nullable=True,
-    )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean,
-        default=True,
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
-    )
-    
-    hotel = relationship(
-        "Hotel",
-        back_populates="users",
-    )
-    orders = relationship(
-        "Order",
-        foreign_keys="Order.customer_id",
-        back_populates="customer",
-        cascade="all, delete-orphan",)
-    deliveries = relationship(
-        "Order",
-        foreign_keys="Order.delivery_partner_id",
-        back_populates="delivery_partner",
-    )
-    delivery_profile = relationship(
-        "DeliveryPartner",
-        foreign_keys="DeliveryPartner.user_id",
-        back_populates="user",
-        uselist=False,
-    )
 
-    approved_delivery_partners = relationship(
-        "DeliveryPartner",
-        foreign_keys="DeliveryPartner.approved_by",
-        back_populates="approver",
-    )
+class User(Base):
+    def __init__(
+        self,
+        id: Optional[int] = None,
+        telegram_id: int = 0,
+        full_name: str = "",
+        username: Optional[str] = None,
+        phone: Optional[str] = None,
+        role: Any = UserRole.CUSTOMER,
+        hotel_id: Optional[int] = None,
+        is_active: bool = True,
+        created_at: Optional[datetime] = None,
+        updated_at: Optional[datetime] = None,
+        hotel: Optional[Any] = None,
+        orders: Optional[Any] = None,
+        deliveries: Optional[Any] = None,
+        delivery_profile: Optional[Any] = None,
+        approved_delivery_partners: Optional[Any] = None,
+        **kwargs
+    ):
+        super().__init__(**kwargs)
+        self.id = id
+        self.telegram_id = telegram_id
+        self.full_name = full_name
+        self.username = username
+        self.phone = phone
+        if isinstance(role, str):
+            try:
+                self.role = UserRole(role)
+            except ValueError:
+                self.role = role
+        else:
+            self.role = role or UserRole.CUSTOMER
+        self.hotel_id = hotel_id
+        self.is_active = is_active
+        self.created_at = created_at or datetime.utcnow()
+        self.updated_at = updated_at or datetime.utcnow()
+        self.hotel = hotel
+        self.orders = orders or []
+        self.deliveries = deliveries or []
+        self.delivery_profile = delivery_profile
+        self.approved_delivery_partners = approved_delivery_partners or []
+
+    def to_dict(self) -> Dict[str, Any]:
+        data = super().to_dict()
+        if "role" in data and hasattr(data["role"], "value"):
+            data["role"] = data["role"].value
+        return data
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "User":
+        if not data:
+            return None # type: ignore
+        d = dict(data)
+        d["id"] = d.get("id") or d.get("_id")
+        return cls(**d)
