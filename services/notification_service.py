@@ -213,17 +213,28 @@ async def notify_driver_assigned(bot: Bot, order, driver_telegram_id: int, drive
         file_type=getattr(order, "file_type", None),
         parse_mode="Markdown",
     )
-_STATUS_MSG = {
-    OrderStatus.APPROVED:         "✅ Your order has been *approved* and is being prepared.",
-    OrderStatus.PREPARING:        "👨‍🍳 Your order is now being *prepared*.",
-    OrderStatus.PACKED:           "📦 Your order has been *packed* and is ready.",
-    OrderStatus.OUT_FOR_DELIVERY: "🚛 Your order is *out for delivery*! The driver is on the way.",
-    OrderStatus.DELIVERED:        "🎉 Your order has been *delivered*! Thank you for choosing Oyiru.",
-    OrderStatus.CANCELLED:        "❌ Your order has been *cancelled*.",
+from utils.i18n import t
+
+_STATUS_KEY = {
+    OrderStatus.APPROVED:         "status_approved",
+    OrderStatus.PREPARING:        "status_preparing",
+    OrderStatus.PACKED:           "status_packed",
+    OrderStatus.OUT_FOR_DELIVERY: "status_out_for_delivery",
+    OrderStatus.DELIVERED:        "status_delivered",
+    OrderStatus.CANCELLED:        "status_cancelled",
 }
 
 async def notify_customer_status_update(bot: Bot, order, customer_telegram_id: int):
-    status_msg = _STATUS_MSG.get(order.status, f"Your order status: {order.status.value}")
+    lang = "en"
+    if getattr(order, "customer", None) and getattr(order.customer, "language", None):
+        lang = order.customer.language
+
+    status_key = _STATUS_KEY.get(order.status)
+    if status_key:
+        status_msg = t(status_key, lang)
+    else:
+        status_msg = f"Your order status: {order.status.value}"
+
     driver_line = f"\n🚗 Driver: {order.driver_name}" if order.driver_name else ""
 
     # When out for delivery, add the delivery partner's contact details if available

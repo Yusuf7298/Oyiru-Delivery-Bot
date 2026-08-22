@@ -36,9 +36,9 @@ else
     echo "Dependencies verified OK."
 fi
 
-# Run database setup
+# Run database setup & sync
 echo "Running database setup..."
-$PYTHON -m alembic upgrade head || $PYTHON create_tables.py || echo "DB setup warning"
+$PYTHON scripts/sync_db_schema.py || echo "DB setup warning"
 
 # Start app
 echo "Starting app.py..."

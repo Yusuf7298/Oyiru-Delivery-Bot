@@ -17,30 +17,34 @@ router = Router()
 router.message.filter(RoleFilter(["admin"]))
 router.callback_query.filter(RoleFilter(["admin"]))
 
-@router.message(F.text == "🗂 Categories")
-async def categories_menu(message: Message, session: AsyncSession):
+from utils.i18n import t
+
+CATEGORIES_MENU_BTNS = ["🧺 Categories", "🗂 Categories", "🧺 ምድቦች", "🧺 Gareewwan"]
+
+@router.message(F.text.in_(CATEGORIES_MENU_BTNS))
+async def categories_menu(message: Message, session: AsyncSession, lang: str = "en"):
     repo = CategoryRepository(session)
     cats = await repo.get_all()
     await message.answer(
-        f"🗂 *Categories* ({len(cats)} total)\n\n✅ = Active  ❌ = Inactive",
-        reply_markup=category_list_keyboard(cats),
+        t("admin_categories_title", lang, count=len(cats)),
+        reply_markup=category_list_keyboard(cats, lang=lang),
         parse_mode="Markdown",
     )
 
 
 @router.callback_query(F.data == "admin_categories_back")
-async def categories_back(callback: CallbackQuery, session: AsyncSession):
+async def categories_back(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
     repo = CategoryRepository(session)
     cats = await repo.get_all()
     await callback.message.edit_text( # type: ignore
-        f"🗂 *Categories* ({len(cats)} total)\n\n✅ = Active  ❌ = Inactive",
-        reply_markup=category_list_keyboard(cats),
+        t("admin_categories_title", lang, count=len(cats)),
+        reply_markup=category_list_keyboard(cats, lang=lang),
         parse_mode="Markdown",
     )
     await callback.answer()
 
 @router.callback_query(F.data.startswith("admin_cat:"))
-async def category_detail(callback: CallbackQuery, session: AsyncSession):
+async def category_detail(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
     cat_id = int(callback.data.split(":")[1]) # type: ignore
     repo = CategoryRepository(session)
     cat = await repo.get_by_id(cat_id)
@@ -50,8 +54,8 @@ async def category_detail(callback: CallbackQuery, session: AsyncSession):
     status = "✅ Active" if cat.is_active else "❌ Inactive"
     await callback.message.edit_text( # type: ignore
         f"🗂 *{cat.name}*\nStatus: {status}",
-        reply_markup=category_detail_keyboard(cat),
-        parse_mode="Markdown",
+        reply_markup=category_detail_keyboard(cat, lang=lang),
+        parse_mode="Markdown"
     )
     await callback.answer()
 

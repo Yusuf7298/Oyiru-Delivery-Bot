@@ -46,8 +46,10 @@ async def assign_driver_confirm(callback: CallbackQuery, session: AsyncSession) 
 
 # ── Store Manager path: sm_assign_driver:<id> → sm_pick_driver:<id>:<driver_id> ─
 
+from utils.i18n import t
+
 @router.callback_query(F.data.startswith("sm_assign_driver:"))
-async def sm_choose_driver(callback: CallbackQuery, session: AsyncSession) -> None:
+async def sm_choose_driver(callback: CallbackQuery, session: AsyncSession, lang: str = "en") -> None:
     order_id_str = callback.data.split(":")[1] # type: ignore
     drivers = await UserRepository(session).get_delivery_partners()
     if not drivers:
@@ -61,7 +63,7 @@ async def sm_choose_driver(callback: CallbackQuery, session: AsyncSession) -> No
                 callback_data=f"sm_pick_driver:{order_id_str}:{driver.id}",
             )]
             for driver in drivers
-        ] + [[InlineKeyboardButton(text="❌ Cancel", callback_data=f"sm_driver_cancel:{order_id_str}")]]
+        ] + [[InlineKeyboardButton(text=t("btn_cancel", lang), callback_data=f"sm_driver_cancel:{order_id_str}")]]
     )
     await callback.message.edit_reply_markup(reply_markup=keyboard) # type: ignore
     await callback.answer()

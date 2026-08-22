@@ -1,13 +1,7 @@
-"""
-Fallback handler — catches button presses that don't match any role-filtered handler.
-Registered LAST in app.py so it only fires when nothing else matched.
-"""
-
 from aiogram import Router, F
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models.user import UserRole
 from database.repositories.user_repository import UserRepository
 from keyboards.customers import customer_menu
 from keyboards.delivery import delivery_menu
@@ -16,31 +10,45 @@ from keyboards.admin_menu import admin_main_menu
 
 router = Router()
 
-# All known button texts from every role's keyboard
 _KNOWN_BUTTONS = {
-    # Customer
-    "📦 Place Order", "📋 View Orders", "🔄 Report Returned Products", "❓ Help",
-    "🔁 Repeat Last Order", "🧺 New Category Order", "📄 Upload New Product List",
+    # Customer Place Order
+    "🛒 Place Order", "🛒 ትዕዛዝ ያስገቡ", "🛒 Ajaja Galchuu",
+    # Customer View Orders
+    "📦 My Orders", "📦 View Orders", "📦 የኔ ትዕዛዞች", "📦 Ajajawwan Koo",
+    # Customer Reorder
+    "🔄 Reorder Last Order", "🔄 Repeat Last Order", "🔄 ያለፈውን ትዕዛዝ ድገም", "🔄 Ajaja Darbe Irra Deebi'i",
+    # Customer Category Order
+    "🧺 Category Order", "🧺 New Category Order", "🧺 የዕቃዎች ምድብ", "🧺 Kutaalee Mi'aa",
+    # Customer Upload List
+    "📄 Upload Product List", "📄 Upload New Product List", "📄 የዕቃ ዝርዝር ላክ", "📄 Tarree Mi'aa Ergi",
+    # Customer Report Returns
+    "📦 Report Returned Products", "📦 Report Returns", "📦 የተመለሱ ዕቃዎችን ሪፖርት አድርግ", "📦 Mi'a Deebi'e Gabaasi",
+    # Customer Profile & Help & Language
+    "👤 Profile", "👤 My Profile", "👤 መገለጫ", "👤 መገለጫዬ", "👤 Profaayilii Koo",
+    "❓ Help", "❓ እርዳታ", "❓ Gargaarsa",
+    "🌐 Language", "🌐 ቋንቋ / Language", "🌐 Afaan / Language", "🌐 Language / ቋንቋ / Afaan",
     # Delivery
-    "📦 Assigned Orders", "📦 Available Deliveries", "🚛 Active Delivery",
-    "🚚 My Deliveries", "📜 Delivery History", "👤 My Profile",
+    "📦 Available Deliveries", "📦 Geessituuwwan Argaman", "📦 ያሉ ማድረሻዎች",
+    "🚚 My Deliveries", "🚚 የኔ ማድረሻዎች", "🚚 Geessituuwwan Koo",
+    "📜 Delivery History", "📜 የትዕዛዝ ታሪክ", "📜 Seenaa Geessituu",
     # Store Manager
-    "📥 New Orders", "📦 Active Orders", "📜 Order History", "📋 Store Manager",
+    "📥 New Orders", "📥 አዳዲስ ትዕዛዞች", "📥 Ajajawwan Haaraa",
+    "📦 Active Orders", "📦 የሚሰሩ ትዕዛዞች", "📦 Ajajawwan Hojii Irra Jiran",
+    "📜 Order History",
     # Admin
-    "📦 New Orders", "🚚 Assign Driver", "📊 Statistics",
+    "🚚 Assign Driver", "📊 Statistics",
 }
 
 _ROLE_MENU = {
-    "customer": ("👤 Customer Menu", customer_menu),
-    "delivery": ("🚛 Delivery Menu", delivery_menu),
-    "hotel":    ("🏪 Store Manager Menu", store_manager_menu),
-    "admin":    ("👑 Admin Menu", admin_main_menu),
+    "customer": ("Customer Menu", customer_menu),
+    "delivery": ("Delivery Menu", delivery_menu),
+    "hotel":    ("Store Manager Menu", store_manager_menu),
+    "admin":    ("Admin Menu", admin_main_menu),
 }
 
 
 @router.message(F.text.in_(_KNOWN_BUTTONS))
 async def fallback_known_button(message: Message, session: AsyncSession):
-    """Catches role-mismatched button presses and shows the correct menu."""
     user_repo = UserRepository(session)
     user = await user_repo.get_by_telegram_id(message.from_user.id)
 
@@ -58,9 +66,26 @@ async def fallback_known_button(message: Message, session: AsyncSession):
         )
         return
 
-    label, menu_fn = _ROLE_MENU.get(user.role, ("Menu", customer_menu))
-    await message.answer(
-        f"⚠️ That button is not available for your role.\n\n"
-        f"Here is your menu:",
-        reply_markup=menu_fn(),
-    )
+    user_lang = getattr(user, "language", "en") or "en"
+    
+    if user.role == "delivery":
+        await message.answer(
+            "ℹ️ Main Menu:",
+            reply_markup=delivery_menu(user_lang),
+        )
+    elif user.role == "hotel":
+        await message.answer(
+            "ℹ️ Main Menu:",
+            reply_markup=store_manager_menu(user_lang),
+        )
+    elif user.role == "admin":
+        await message.answer(
+            "ℹ️ Main Menu:",
+            reply_markup=admin_main_menu(user_lang),
+        )
+    else:
+        await message.answer(
+            "ℹ️ Main Menu:",
+            reply_markup=customer_menu(user_lang),
+        )
+

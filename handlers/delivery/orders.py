@@ -1,5 +1,6 @@
+from datetime import datetime, timezone
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, BufferedInputFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 from database.models.order import OrderStatus
@@ -13,6 +14,8 @@ from keyboards.delivery import (
 )
 from filters.role_filter import RoleFilter
 from utils.helpers import safe_edit_text_or_caption
+from utils.i18n import t
+from utils.excel_export import generate_driver_excel
 
 router = Router()
 router.message.filter(RoleFilter(["delivery"]))
@@ -31,8 +34,15 @@ def _order_card(order) -> str:
         f"📌 Status: {order.status.value}"
     )
 
-@router.message(F.text.in_(["📦 Assigned Orders", "📦 Available Deliveries"]))
-async def assigned_orders(message: Message, session: AsyncSession):
+DELIVERY_AVAILABLE_BTNS = ["📦 Assigned Orders", "📦 Available Deliveries", "📦 ያሉ ማድረሻዎች", "📦 Geessituuwwan Argaman"]
+DELIVERY_ACTIVE_BTNS = ["🚛 Active Delivery", "🚚 My Deliveries", "🚚 የኔ ማድረሻዎች", "🚚 Geessituuwwan Koo"]
+DELIVERY_HISTORY_BTNS = ["📜 Delivery History", "📜 የማድረሻ ታሪክ", "📜 Seenaa Geessisuu"]
+PROFILE_BTNS = ["👤 Profile", "👤 My Profile", "👤 መገለጫ", "👤 Profaayilii Koo"]
+
+from utils.i18n import t
+
+@router.message(F.text.in_(DELIVERY_AVAILABLE_BTNS))
+async def assigned_orders(message: Message, session: AsyncSession, lang: str = "en"):
     user_repo = UserRepository(session)
     driver = await user_repo.get_by_telegram_id(message.from_user.id) # type: ignore
     if not driver:
@@ -43,13 +53,13 @@ async def assigned_orders(message: Message, session: AsyncSession):
     data = await repo.get_driver_orders(driver.id)
     orders = data.get("assigned", [])
     if not orders:
-        await message.answer("📭 No assigned deliveries right now.")
+        await message.answer(t("no_assigned_deliveries", lang))
         return
 
-    await message.answer(f"📦 *Assigned Deliveries* ({len(orders)})", parse_mode="Markdown")
+    await message.answer(t("assigned_deliveries_title", lang, count=len(orders)), parse_mode="Markdown")
     for order in orders:
         card = _order_card(order)
-        kb = assigned_order_keyboard(order.id)
+        kb = assigned_order_keyboard(order.id, lang=lang)
         # If order was placed via photo/file upload, send the file so driver can see it
         if order.telegram_file_id or order.file_path:
             sent = False
@@ -81,8 +91,8 @@ async def assigned_orders(message: Message, session: AsyncSession):
         else:
             await message.answer(card, reply_markup=kb, parse_mode="Markdown")
 
-@router.message(F.text.in_(["🚛 Active Delivery", "🚚 My Deliveries"]))
-async def active_delivery(message: Message, session: AsyncSession):
+@router.message(F.text.in_(DELIVERY_ACTIVE_BTNS))
+async def active_delivery(message: Message, session: AsyncSession, lang: str = "en"):
     user_repo = UserRepository(session)
     driver = await user_repo.get_by_telegram_id(message.from_user.id) # type: ignore
     if not driver:
@@ -94,21 +104,21 @@ async def active_delivery(message: Message, session: AsyncSession):
     orders = data.get("accepted", [])
 
     if not orders:
-        await message.answer("🚦 No active deliveries in progress.")
+        await message.answer(t("no_active_deliveries", lang))
         return
 
-    await message.answer(f"🚛 *Active Deliveries* ({len(orders)})", parse_mode="Markdown")
+    await message.answer(t("active_deliveries_title", lang, count=len(orders)), parse_mode="Markdown")
     for order in orders:
         accepted_str = _fmt_time(order.accepted_at)
         text = _order_card(order) + f"\n⏱ Accepted: {accepted_str}"
         await message.answer(
             text,
-            reply_markup=active_order_keyboard(order.id),
+            reply_markup=active_order_keyboard(order.id, lang=lang),
             parse_mode="Markdown",
         )
 
-@router.message(F.text == "📜 Delivery History")
-async def delivery_history(message: Message, session: AsyncSession):
+@router.message(F.text.in_(DELIVERY_HISTORY_BTNS))
+async def delivery_history(message: Message, session: AsyncSession, lang: str = "en"):
     user_repo = UserRepository(session)
     driver = await user_repo.get_by_telegram_id(message.from_user.id) # type: ignore
     if not driver:
@@ -120,10 +130,10 @@ async def delivery_history(message: Message, session: AsyncSession):
     orders = data.get("completed", [])
 
     if not orders:
-        await message.answer("📭 No completed deliveries yet.")
+        await message.answer(t("no_delivery_history", lang))
         return
 
-    lines = [f"📜 Delivery History ({len(orders)})\n"]
+    lines = [f"{t('delivery_history_title', lang, count=len(orders))}\n"]
     for order in orders:
         lines.append(
             f"• `{order.order_number}` — {order.hotel.name if order.hotel else '—'}\n"
@@ -132,8 +142,8 @@ async def delivery_history(message: Message, session: AsyncSession):
         )
     await message.answer("\n".join(lines), parse_mode="Markdown")
 
-@router.message(F.text == "👤 My Profile")
-async def driver_profile(message: Message, session: AsyncSession):
+@router.message(F.text.in_(PROFILE_BTNS))
+async def driver_profile(message: Message, session: AsyncSession, lang: str = "en"):
     user_repo = UserRepository(session)
     driver = await user_repo.get_by_telegram_id(message.from_user.id) # type: ignore
     if not driver:
@@ -141,7 +151,7 @@ async def driver_profile(message: Message, session: AsyncSession):
         return
 
     await message.answer(
-        "👤 Driver Profile\n\n"
+        f"{t('driver_profile_title', lang)}\n\n"
         f"📛 Name: {driver.full_name}\n"
         f"📞 Phone: {driver.phone or '—'}\n"
         f"🆔 Telegram ID: `{driver.telegram_id}`\n"
@@ -150,30 +160,45 @@ async def driver_profile(message: Message, session: AsyncSession):
     )
 
 @router.callback_query(F.data.startswith("drv_accept:"))
-async def driver_accept(callback: CallbackQuery, session: AsyncSession):
+async def driver_accept(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
     order_id = int(callback.data.split(":")[1]) # type: ignore
     user_repo = UserRepository(session)
     driver = await user_repo.get_by_telegram_id(callback.from_user.id)
     if not driver:
-        await callback.answer("Driver not found.", show_alert=True)
+        try:
+            await callback.answer("Driver not found.", show_alert=True)
+        except Exception:
+            pass
         return
 
     repo = OrderRepository(session)
     order, code = await repo.driver_accept(order_id, driver.id) # type: ignore
     if code == "not_found":
-        await callback.answer("Order not found.", show_alert=True)
+        try:
+            await callback.answer("Order not found.", show_alert=True)
+        except Exception:
+            pass
         return
     if code == "not_assigned":
-        await callback.answer("⚠️ This order is not assigned to you.", show_alert=True)
+        try:
+            await callback.answer("⚠️ This order is not assigned to you.", show_alert=True)
+        except Exception:
+            pass
         return
     if code == "wrong_status":
-        await callback.answer(
-            f"⚠️ Cannot accept — order is {order.status.value}.",
-            show_alert=True,
-        )
+        try:
+            await callback.answer(
+                f"⚠️ Cannot accept — order is {order.status.value}.",
+                show_alert=True,
+            )
+        except Exception:
+            pass
         return
 
-    await callback.answer("Accepted! 🚛")
+    try:
+        await callback.answer("Accepted! 🚛")
+    except Exception:
+        pass
 
     if order.customer:
         try:
@@ -189,7 +214,7 @@ async def driver_accept(callback: CallbackQuery, session: AsyncSession):
         f"{_order_card(order)}\n\n"
         f"⏱ Accepted: {_fmt_time(order.accepted_at)}\n\n"
         "Tap *Complete Delivery* when you have delivered the order.",
-        reply_markup=active_order_keyboard(order.id),
+        reply_markup=active_order_keyboard(order.id, lang=lang),
         parse_mode="Markdown",
     )
 
@@ -199,25 +224,40 @@ async def driver_complete(callback: CallbackQuery, session: AsyncSession):
     user_repo = UserRepository(session)
     driver = await user_repo.get_by_telegram_id(callback.from_user.id)
     if not driver:
-        await callback.answer("Driver not found.", show_alert=True)
+        try:
+            await callback.answer("Driver not found.", show_alert=True)
+        except Exception:
+            pass
         return
 
     repo = OrderRepository(session)
     order, code = await repo.driver_complete(order_id, driver.id) # type: ignore
     if code == "not_found":
-        await callback.answer("Order not found.", show_alert=True)
+        try:
+            await callback.answer("Order not found.", show_alert=True)
+        except Exception:
+            pass
         return
     if code == "not_assigned":
-        await callback.answer("⚠️ This order is not assigned to you.", show_alert=True)
+        try:
+            await callback.answer("⚠️ This order is not assigned to you.", show_alert=True)
+        except Exception:
+            pass
         return
     if code == "wrong_status":
-        await callback.answer(
-            f"⚠️ Cannot complete — order is {order.status.value}.",
-            show_alert=True,
-        )
+        try:
+            await callback.answer(
+                f"⚠️ Cannot complete — order is {order.status.value}.",
+                show_alert=True,
+            )
+        except Exception:
+            pass
         return
 
-    await callback.answer("Delivered! ✅")
+    try:
+        await callback.answer("Delivered! ✅")
+    except Exception:
+        pass
 
     if order.customer:
         try:
@@ -235,3 +275,44 @@ async def driver_complete(callback: CallbackQuery, session: AsyncSession):
         f"✅ Delivered: {_fmt_time(order.delivered_at)}",
         parse_mode="Markdown",
     )
+
+DRIVER_EXPORT_BTNS = [
+    "📊 Export Deliveries (Excel)", "📊 Export Deliveries", "📊 Export Data",
+    "📊 ማድረሻዎችን አውርድ (Excel)", "📊 ማድረሻዎችን አውርድ",
+    "📊 Geessisuu Buusi (Excel)", "📊 Geessisuu Buusi"
+]
+
+@router.message(F.text.in_(DRIVER_EXPORT_BTNS))
+async def driver_export_deliveries(message: Message, session: AsyncSession, lang: str = "en"):
+    await message.answer(t("exporting_excel", lang))
+    try:
+        user_repo = UserRepository(session)
+        driver = await user_repo.get_by_telegram_id(message.from_user.id) # type: ignore
+        if not driver:
+            await message.answer("❌ Profile not found.")
+            return
+
+        repo = OrderRepository(session)
+        data = await repo.get_driver_orders(driver.id)
+        orders = data.get("completed", []) + data.get("accepted", []) + data.get("assigned", [])
+        if not orders:
+            await message.answer(t("no_orders_to_export", lang))
+            return
+
+        xlsx_bytes = generate_driver_excel(driver, orders)
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
+        safe_name = "".join(c for c in (driver.full_name or "driver") if c.isalnum() or c in ('_', '-'))
+        filename = f"oyiru_deliveries_{safe_name}_{ts}.xlsx"
+        doc = BufferedInputFile(xlsx_bytes, filename=filename)
+
+        caption = (
+            f"📊 *Oyiru Delivery Partner Report*\n\n"
+            f"🚚 Driver: *{driver.full_name}*\n"
+            f"📦 Total Deliveries Exported: *{len(orders)}*\n"
+            f"📅 Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
+        )
+        await message.answer_document(doc, caption=caption, parse_mode="Markdown")
+    except Exception as e:
+        logger.error(f"Driver Excel export failed: {e}")
+        await message.answer(f"❌ Export failed: {e}")
+

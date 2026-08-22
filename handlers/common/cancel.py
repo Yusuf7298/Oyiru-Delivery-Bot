@@ -25,10 +25,11 @@ async def cancel_handler(message: Message, state: FSMContext, session: AsyncSess
         await message.answer("❌ Operation cancelled.")
         return
 
+    user_lang = getattr(user, "language", "en") or "en"
     if user.role == UserRole.CUSTOMER:
         order_repo = OrderRepository(session)
         last = await order_repo.get_last_order(user.id)
-        menu = customer_reorder_menu() if last else customer_menu()
+        menu = customer_reorder_menu(user_lang) if last else customer_menu(user_lang)
         await message.answer(
             "❌ Cancelled." if current else "ℹ️ Nothing to cancel.",
             reply_markup=menu,
@@ -36,17 +37,17 @@ async def cancel_handler(message: Message, state: FSMContext, session: AsyncSess
     elif user.role == UserRole.HOTEL:
         await message.answer(
             "❌ Cancelled." if current else "ℹ️ Nothing to cancel.",
-            reply_markup=store_manager_menu(),
+            reply_markup=store_manager_menu(user_lang),
         )
     elif user.role == UserRole.DELIVERY:
         await message.answer(
             "❌ Cancelled." if current else "ℹ️ Nothing to cancel.",
-            reply_markup=delivery_menu(),
+            reply_markup=delivery_menu(user_lang),
         )
     elif user.role == UserRole.ADMIN:
         await message.answer(
             "❌ Cancelled." if current else "ℹ️ Nothing to cancel.",
-            reply_markup=admin_main_menu(),
+            reply_markup=admin_main_menu(user_lang),
         )
     else:
         await message.answer("❌ Cancelled.")

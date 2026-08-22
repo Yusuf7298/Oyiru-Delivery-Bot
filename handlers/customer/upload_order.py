@@ -15,6 +15,7 @@ from states.order import OrderState
 from keyboards.customer.order import upload_review_keyboard, skip_note_keyboard
 from keyboards.customers import customer_menu, customer_reorder_menu
 from filters.role_filter import RoleFilter
+from utils.i18n import t
 
 router = Router()
 router.message.filter(RoleFilter(["customer"]))
@@ -39,7 +40,7 @@ def _cleanup_file(path: str | None) -> None:
             logger.warning(f"Failed to clean up file {path}: {e}")
 
 # ── Entry ─────────────────────────────────────────────────────────────────────
-@router.message(F.text.in_(["📄 Upload Photo", "📄 Upload Product List", "📄 Upload New Product List"]))
+@router.message(F.text.in_(["📄 Upload Photo", "📄 Upload Product List", "📄 Upload New Product List", "📄 የዕቃዎች ዝርዝር ፋይል ላክ", "📄 Tarree Mi'aa Ergaa"]))
 async def start_upload_order(message: Message, state: FSMContext) -> None:
     await state.clear()
     await state.update_data(order_method="upload")
@@ -59,7 +60,7 @@ async def replace_file(callback: CallbackQuery, state: FSMContext) -> None:
     data = await state.get_data()
     _cleanup_file(data.get("file_path"))
     await state.update_data(file_path=None, telegram_file_id=None,file_type=None, original_filename=None, uploaded_at=None)
-    await callback.message.answer( # type: ignore
+    await callback.message.answer(
         "📄 Send a replacement file:\n"
         "  • 📷 Photo\n  • 📄 PDF\n  • 📎 Excel / Word / Text",
         parse_mode="Markdown",
@@ -81,14 +82,14 @@ async def handle_uploaded_file(message: Message, state: FSMContext) -> None:
         photo = message.photo[-1]
         telegram_file_id = photo.file_id
         file_type = "photo"
-        fname = f"photo_{message.from_user.id}_{uuid.uuid4().hex[:8]}.jpg" # type: ignore
+        fname = f"photo_{message.from_user.id}_{uuid.uuid4().hex[:8]}.jpg"
         original_filename = fname
         local_path = os.path.join(UPLOAD_DIR, fname)
         try:
-            file_info = await message.bot.get_file(photo.file_id) # type: ignore
-            await message.bot.download_file(file_info.file_path, local_path) # type: ignore
+            file_info = await message.bot.get_file(photo.file_id)
+            await message.bot.download_file(file_info.file_path, local_path)
         except Exception as e:
-            logger.error(f"Photo download failed for user {message.from_user.id}: {e}") # type: ignore
+            logger.error(f"Photo download failed for user {message.from_user.id}: {e}")
             _cleanup_file(local_path)
             await message.answer("❌ Failed to download your photo. Please try again.")
             return
@@ -113,10 +114,10 @@ async def handle_uploaded_file(message: Message, state: FSMContext) -> None:
         safe_name = f"{uuid.uuid4().hex}{ext}"
         local_path = os.path.join(UPLOAD_DIR, safe_name)
         try:
-            file_info = await message.bot.get_file(doc.file_id) # type: ignore
-            await message.bot.download_file(file_info.file_path, local_path) # type: ignore
+            file_info = await message.bot.get_file(doc.file_id)
+            await message.bot.download_file(file_info.file_path, local_path)
         except Exception as e:
-            logger.error(f"Document download failed for user {message.from_user.id}: {e}") # type: ignore
+            logger.error(f"Document download failed for user {message.from_user.id}: {e}")
             _cleanup_file(local_path)
             await message.answer("❌ Failed to download your document. Please try again.")
             return
@@ -125,7 +126,7 @@ async def handle_uploaded_file(message: Message, state: FSMContext) -> None:
         await message.answer("❌ Could not process the file. Please try again.")
         return
 
-    relative_path = os.path.relpath(local_path, os.getcwd()).replace("\\", "/") # type: ignore
+    relative_path = os.path.relpath(local_path, os.getcwd()).replace("\\", "/")
     uploaded_at = datetime.now(timezone.utc).isoformat()
     await state.update_data(
         file_path=relative_path,
@@ -139,19 +140,19 @@ async def handle_uploaded_file(message: Message, state: FSMContext) -> None:
         f"✅ File received: {original_filename}\n\n"
         "📝 Optional Note\n"
         "Add a note for this order _(e.g. Urgent / Deliver before 9 AM)_\n\n"
-        "Or tap ⏭ Skip Note to continue.",
+        "Or tap ⏭️ Skip Note to continue.",
         reply_markup=skip_note_keyboard(),
         parse_mode="Markdown",
     )
     await state.set_state(OrderState.entering_note)
 
 
-@router.message(OrderState.waiting_for_document, F.text.in_(["/cancel", "cancel", "❌ Cancel"]))
-async def cancel_upload(message: Message, state: FSMContext) -> None:
+@router.message(OrderState.waiting_for_document, F.text.in_(["/cancel", "cancel", "❌ Cancel", "❌ Haqi", "❌ ሰርዝ"]))
+async def cancel_upload(message: Message, state: FSMContext, session: AsyncSession, lang: str = "en") -> None:
     data = await state.get_data()
     _cleanup_file(data.get("file_path"))
     await state.clear()
-    await message.answer("❌ Upload cancelled.", reply_markup=customer_menu())
+    await message.answer("❌ Upload cancelled.", reply_markup=customer_menu(lang))
 
 
 @router.message(OrderState.waiting_for_document)
@@ -161,7 +162,7 @@ async def invalid_upload(message: Message) -> None:
         parse_mode="Markdown",
     )
 
-async def show_upload_review(message: Message, state: FSMContext, session: AsyncSession) -> None:
+async def show_upload_review(message: Message, state: FSMContext, session: AsyncSession, lang: str = "en") -> None:
     data = await state.get_data()
     user_repo = UserRepository(session)
     customer = await user_repo.get_by_telegram_id(
@@ -175,14 +176,19 @@ async def show_upload_review(message: Message, state: FSMContext, session: Async
     note = data.get("note")
     file_label = FILE_TYPE_LABELS.get(file_type, "📎 File")
 
+    rev_title = t("order_review_title", lang)
+    h_lbl = t("hotel_label", lang)
+    c_lbl = t("customer_label", lang)
+    n_lbl = t("note_label", lang)
+
     text = (
-        "📋 Order Review\n\n"
+        f"{rev_title}\n\n"
         f"🆔 Order Number: _Will be assigned on submit_\n"
-        f"🏨 Hotel: {hotel_name}\n"
-        f"👤 Customer: {customer.full_name if customer else '—'}\n\n"
+        f"{h_lbl}: {hotel_name}\n"
+        f"{c_lbl}: {customer.full_name if customer else '—'}\n\n"
         f"📁 Uploaded File:\n"
         f"  {file_label}  —  `{original_filename}`\n\n"
-        f"📝 Note: {note or '—'}"
+        f"{n_lbl}: {note or '—'}"
     )
 
     sent = False
@@ -240,8 +246,8 @@ async def show_upload_review(message: Message, state: FSMContext, session: Async
 
 @router.callback_query(OrderState.reviewing_uploaded_order, F.data == "upload_edit_note")
 async def upload_edit_note(callback: CallbackQuery, state: FSMContext) -> None:
-    await callback.message.answer( # type: ignore
-        "📝 Enter a new note, or tap ⏭ Skip Note to remove it:",
+    await callback.message.answer(
+        "📝 Enter a new note, or tap ⏭️ Skip Note to remove it:",
         reply_markup=skip_note_keyboard(),
         parse_mode="Markdown",
     )
@@ -249,7 +255,7 @@ async def upload_edit_note(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.answer()
 
 @router.callback_query(OrderState.reviewing_uploaded_order, F.data == "upload_submit")
-async def submit_upload_order(callback: CallbackQuery, state: FSMContext, session: AsyncSession) -> None:
+async def submit_upload_order(callback: CallbackQuery, state: FSMContext, session: AsyncSession, lang: str = "en") -> None:
     data = await state.get_data()
     user_repo = UserRepository(session)
     customer = await user_repo.get_by_telegram_id(callback.from_user.id)
@@ -263,22 +269,22 @@ async def submit_upload_order(callback: CallbackQuery, state: FSMContext, sessio
     order = await order_service.create_order(
         customer_id=customer.id,
         hotel_id=customer.hotel_id,
-        note=data.get("note"), # type: ignore
-        file_path=data.get("file_path"), # type: ignore
-        telegram_file_id=data.get("telegram_file_id"), # type: ignore
-        file_type=data.get("file_type"), # type: ignore
-        original_filename=data.get("original_filename"), # type: ignore
-        uploaded_at=data.get("uploaded_at"), # type: ignore
+        note=data.get("note"),
+        file_path=data.get("file_path"),
+        telegram_file_id=data.get("telegram_file_id"),
+        file_type=data.get("file_type"),
+        original_filename=data.get("original_filename"),
+        uploaded_at=data.get("uploaded_at"),
     )
     await state.clear()
 
     try:
-        await notify_admin_new_order(callback.bot, order, customer) # type: ignore
+        await notify_admin_new_order(callback.bot, order, customer)
     except Exception as exc:
         logger.error(f"Notification failed for {order.order_number}: {exc}")
 
     last = await OrderRepository(session).get_last_order(customer.id)
-    menu = customer_reorder_menu() if last else customer_menu()
+    menu = customer_reorder_menu(lang) if last else customer_menu(lang)
     file_label = FILE_TYPE_LABELS.get(order.file_type or "", "📎 File")
 
     from utils.helpers import safe_edit_text_or_caption
@@ -291,4 +297,4 @@ async def submit_upload_order(callback: CallbackQuery, state: FSMContext, sessio
         f"📌 Status: {order.status.value}",
         parse_mode="Markdown",
     )
-    await callback.message.answer("Choose an option:", reply_markup=menu) # type: ignore
+    await callback.message.answer("Choose an option:", reply_markup=menu)

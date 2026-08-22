@@ -18,38 +18,42 @@ router.message.filter(RoleFilter(["admin"]))
 router.callback_query.filter(RoleFilter(["admin"]))
 
 
-@router.message(F.text == "🏨 Hotels")
-async def hotels_menu(message: Message, session: AsyncSession):
+from utils.i18n import t
+
+HOTELS_MENU_BTNS = ["🏨 Hotels", "🏨 ሆቴሎች", "🏨 Hoteelota"]
+
+@router.message(F.text.in_(HOTELS_MENU_BTNS))
+async def hotels_menu(message: Message, session: AsyncSession, lang: str = "en"):
     repo = HotelRepository(session)
     hotels = await repo.get_all()
     if not hotels:
         await message.answer(
-            "No hotels yet.\nTap *➕ Add Hotel* to create the first one.",
-            reply_markup=hotel_list_keyboard([]),
+            t("admin_no_hotels", lang),
+            reply_markup=hotel_list_keyboard([], lang=lang),
             parse_mode="Markdown",
         )
         return
     await message.answer(
-        f"🏨 *Hotels* ({len(hotels)} total)\n\n✅ = Active  ❌ = Inactive",
-        reply_markup=hotel_list_keyboard(hotels),
+        t("admin_hotels_title", lang, count=len(hotels)),
+        reply_markup=hotel_list_keyboard(hotels, lang=lang),
         parse_mode="Markdown",
     )
 
 
 @router.callback_query(F.data == "admin_hotels_back")
-async def hotels_back(callback: CallbackQuery, session: AsyncSession):
+async def hotels_back(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
     repo = HotelRepository(session)
     hotels = await repo.get_all()
     await callback.message.edit_text( # type: ignore
-        f"🏨 *Hotels* ({len(hotels)} total)\n\n✅ = Active  ❌ = Inactive",
-        reply_markup=hotel_list_keyboard(hotels),
+        t("admin_hotels_title", lang, count=len(hotels)),
+        reply_markup=hotel_list_keyboard(hotels, lang=lang),
         parse_mode="Markdown",
     )
     await callback.answer()
 
 
 @router.callback_query(F.data.startswith("admin_hotel:"))
-async def hotel_detail(callback: CallbackQuery, session: AsyncSession):
+async def hotel_detail(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
     hotel_id = int(callback.data.split(":")[1]) # type: ignore
     repo = HotelRepository(session)
     hotel = await repo.get_by_id(hotel_id)
@@ -64,7 +68,7 @@ async def hotel_detail(callback: CallbackQuery, session: AsyncSession):
         f"Status: {status}"
     )
     await callback.message.edit_text( # type: ignore
-        text, reply_markup=hotel_detail_keyboard(hotel), parse_mode="Markdown"
+        text, reply_markup=hotel_detail_keyboard(hotel, lang=lang), parse_mode="Markdown"
     )
     await callback.answer()
 

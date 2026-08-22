@@ -114,7 +114,9 @@ def _format_stats(s: dict) -> str:
 
     return "\n".join(lines)
 
-@router.message(F.text == "📊 Statistics")
+STATS_MENU_BTNS = ["📊 Statistics", "📊 ስታቲስቲክስ", "📊 Istaatistiksii", "/stats"]
+
+@router.message(F.text.in_(STATS_MENU_BTNS))
 async def show_statistics(message: Message, session: AsyncSession):
     repo  = AnalyticsRepository(session)
     stats = await _gather_stats(repo)

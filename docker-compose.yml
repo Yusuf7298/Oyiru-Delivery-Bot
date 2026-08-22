@@ -1,0 +1,12 @@
+﻿version: '3.8'
+
+services:
+  oyiru-bot:
+    build: .
+    container_name: oyiru_delivery_bot
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads

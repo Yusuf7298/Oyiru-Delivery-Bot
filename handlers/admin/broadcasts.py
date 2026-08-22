@@ -33,19 +33,21 @@ AUDIENCE_OPTIONS = {
 }
 
 
-def _audience_keyboard():
+from utils.i18n import t
+
+def _audience_keyboard(lang: str = "en"):
     builder = InlineKeyboardBuilder()
     for cb_key, (label, _) in AUDIENCE_OPTIONS.items():
         builder.button(text=label, callback_data=cb_key)
-    builder.button(text="❌ Cancel", callback_data="bc_cancel")
+    builder.button(text=t("btn_cancel", lang), callback_data="bc_cancel")
     builder.adjust(2, 2, 1)
     return builder.as_markup()
 
 
-def _confirm_keyboard():
+def _confirm_keyboard(lang: str = "en"):
     builder = InlineKeyboardBuilder()
     builder.button(text="✅ Send Now", callback_data="bc_confirm")
-    builder.button(text="❌ Cancel",   callback_data="bc_cancel")
+    builder.button(text=t("btn_cancel", lang), callback_data="bc_cancel")
     builder.adjust(2)
     return builder.as_markup()
 
@@ -111,13 +113,15 @@ async def _send_to_user(bot, user, data: dict) -> str:
         return "failed"
 
 
-@router.message(F.text == "📢 Broadcast")
-async def broadcast_start(message: Message, state: FSMContext):
+BROADCAST_MENU_BTNS = ["📢 Broadcast", "📢 መልእክት አስተላልፍ", "📢 Ergaa Tamsaasi"]
+
+@router.message(F.text.in_(BROADCAST_MENU_BTNS))
+async def broadcast_start(message: Message, state: FSMContext, lang: str = "en"):
     await state.clear()
     await message.answer(
         "📢 *Broadcast Message*\n\n"
         "Select the *audience* for this broadcast:",
-        reply_markup=_audience_keyboard(),
+        reply_markup=_audience_keyboard(lang=lang),
         parse_mode="Markdown",
     )
     await state.set_state(BroadcastStates.choosing_audience)
@@ -145,44 +149,44 @@ async def audience_selected(callback: CallbackQuery, state: FSMContext, session:
     await callback.answer()
 
 @router.message(BroadcastStates.waiting_message, F.content_type == ContentType.TEXT)
-async def bc_receive_text(message: Message, state: FSMContext):
+async def bc_receive_text(message: Message, state: FSMContext, lang: str = "en"):
     text = message.text.strip() # type: ignore
     if not text:
         await message.answer("❌ Message cannot be empty. Send your broadcast text:")
         return
     await state.update_data(content_type="text", text=text)
-    await _show_preview(message, state)
+    await _show_preview(message, state, lang=lang)
 
 
 @router.message(BroadcastStates.waiting_message, F.content_type == ContentType.PHOTO)
-async def bc_receive_photo(message: Message, state: FSMContext):
+async def bc_receive_photo(message: Message, state: FSMContext, lang: str = "en"):
     await state.update_data(
         content_type="photo",
         file_id=message.photo[-1].file_id, # type: ignore
         caption=message.caption or "",
     )
-    await _show_preview(message, state)
+    await _show_preview(message, state, lang=lang)
 
 
 @router.message(BroadcastStates.waiting_message, F.content_type == ContentType.DOCUMENT)
-async def bc_receive_document(message: Message, state: FSMContext):
+async def bc_receive_document(message: Message, state: FSMContext, lang: str = "en"):
     await state.update_data(
         content_type="document",
         file_id=message.document.file_id, # type: ignore
         filename=message.document.file_name or "file", # type: ignore
         caption=message.caption or "",
     )
-    await _show_preview(message, state)
+    await _show_preview(message, state, lang=lang)
 
 
 @router.message(BroadcastStates.waiting_message, F.content_type == ContentType.VIDEO)
-async def bc_receive_video(message: Message, state: FSMContext):
+async def bc_receive_video(message: Message, state: FSMContext, lang: str = "en"):
     await state.update_data(
         content_type="video",
         file_id=message.video.file_id, # type: ignore
         caption=message.caption or "",
     )
-    await _show_preview(message, state)
+    await _show_preview(message, state, lang=lang)
 
 
 @router.message(BroadcastStates.waiting_message)
@@ -198,7 +202,7 @@ async def bc_unsupported_type(message: Message):
     )
 
 
-async def _show_preview(message: Message, state: FSMContext):
+async def _show_preview(message: Message, state: FSMContext, lang: str = "en"):
     data = await state.get_data()
     label = data.get("audience_label", "—")
     count = data.get("recipient_count", 0)
@@ -209,7 +213,7 @@ async def _show_preview(message: Message, state: FSMContext):
         f"👥 *Audience*: {label} ({count} users)\n\n"
         f"{summary}\n\n"
         "Confirm to send?",
-        reply_markup=_confirm_keyboard(),
+        reply_markup=_confirm_keyboard(lang=lang),
         parse_mode="Markdown",
     )
     await state.set_state(BroadcastStates.confirming)

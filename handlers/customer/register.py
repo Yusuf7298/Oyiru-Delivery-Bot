@@ -86,14 +86,20 @@ async def handle_phone(message: Message, state: FSMContext, session: AsyncSessio
         if hotel:
             hotel_name = hotel.name
 
+    import html
+    name_clean = html.escape(str(data.get("full_name", "")))
+    phone_clean = html.escape(str(phone))
+    hotel_clean = html.escape(str(hotel_name))
+    uname = html.escape(str(message.from_user.username or "none")) # type: ignore
+
     try:
         notification_text = (
-            "🔔 *New Customer Registration Request*\n\n"
-            f"👤 *Name*: {data['full_name']}\n"
-            f"📱 *Phone*: {phone}\n"
-            f"🏨 *Hotel*: {hotel_name}\n"
-            f"🆔 *Telegram ID*: `{message.from_user.id}`\n" # type: ignore
-            f"🏷 *Username*: @{message.from_user.username or 'none'}" # type: ignore
+            "🔔 <b>New Customer Registration Request</b>\n\n"
+            f"👤 <b>Name</b>: {name_clean}\n"
+            f"📱 <b>Phone</b>: {phone_clean}\n"
+            f"🏨 <b>Hotel</b>: {hotel_clean}\n"
+            f"🆔 <b>Telegram ID</b>: <code>{message.from_user.id}</code>\n" # type: ignore
+            f"🏷 <b>Username</b>: @{uname}"
         )
         for admin_id in SUPER_ADMIN_IDS:
             try:
@@ -101,7 +107,7 @@ async def handle_phone(message: Message, state: FSMContext, session: AsyncSessio
                     chat_id=int(admin_id),
                     text=notification_text,
                     reply_markup=admin_keyboard,
-                    parse_mode="Markdown",
+                    parse_mode="HTML",
                 )
             except Exception as e:
                 logging.error(f"Failed to notify admin {admin_id} of registration: {e}")

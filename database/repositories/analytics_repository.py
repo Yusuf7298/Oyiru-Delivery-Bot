@@ -1,4 +1,4 @@
-from datetime import datetime, timezone, timedelta
+﻿from datetime import datetime, timezone, timedelta
 from typing import List, Tuple, Dict, Optional, Any
 from database.models.order import Order, OrderStatus
 from database.models.order_item import OrderItem
@@ -129,3 +129,17 @@ class AnalyticsRepository:
             if order:
                 orders.append(order)
         return orders
+
+    async def returns_map_for_export(self) -> Dict[int, str]:
+        cursor = self.db["returned_items"].find({})
+        returns_map = {}
+        async for doc in cursor:
+            order_id = doc.get("order_id")
+            desc = doc.get("description", "Returned")
+            if order_id:
+                if order_id in returns_map:
+                    returns_map[order_id] += f"; {desc}"
+                else:
+                    returns_map[order_id] = desc
+        return returns_map
+

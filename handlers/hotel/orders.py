@@ -15,9 +15,11 @@ router = Router()
 router.message.filter(RoleFilter(["hotel"]))
 router.callback_query.filter(RoleFilter(["hotel"]))
 
-async def send_orders(message: Message, orders):
+from utils.i18n import t
+
+async def send_orders(message: Message, orders, lang: str = "en"):
     if not orders:
-        await message.answer("No orders found.")
+        await message.answer(t("no_orders_found", lang))
         return
     for order in orders:
         text = (
@@ -37,7 +39,7 @@ async def send_orders(message: Message, orders):
 
         builder = InlineKeyboardBuilder()
         builder.button(
-            text="📄 Open Order",
+            text=t("btn_open_order", lang),
             callback_data=f"open_order:{order.id}",
         )
 
@@ -47,8 +49,12 @@ async def send_orders(message: Message, orders):
             parse_mode="Markdown"
         )
 
-@router.message(F.text == "📥 New Orders")
-async def new_orders(message: Message):
+NEW_ORDERS_BTNS = ["📥 New Orders", "📥 አዳዲስ ትዕዛዞች", "📥 Ajajawwan Haaraa"]
+ACTIVE_ORDERS_BTNS = ["📦 Active Orders", "📦 የሚሰሩ ትዕዛዞች", "📦 Ajajawwan Hojii Irra Jiran"]
+ORDER_HISTORY_BTNS = ["📜 Order History", "📜 የትዕዛዝ ታሪክ", "📜 Seenaa Ajajaa"]
+
+@router.message(F.text.in_(NEW_ORDERS_BTNS))
+async def new_orders(message: Message, lang: str = "en"):
     async with AsyncSessionLocal() as session:
         repo = OrderRepository(session)
         hotel_user = await repo.get_hotel_by_telegram(message.from_user.id) # type: ignore
@@ -56,10 +62,10 @@ async def new_orders(message: Message):
             await message.answer("Store Manager account not found.")
             return
         orders = await repo.get_new_orders(hotel_user.hotel_id) # type: ignore
-        await send_orders(message, orders)
+        await send_orders(message, orders, lang=lang)
 
-@router.message(F.text == "📦 Active Orders")
-async def active_orders(message: Message):
+@router.message(F.text.in_(ACTIVE_ORDERS_BTNS))
+async def active_orders(message: Message, lang: str = "en"):
     async with AsyncSessionLocal() as session:
         repo = OrderRepository(session)
         hotel_user = await repo.get_hotel_by_telegram(message.from_user.id) # type: ignore
@@ -67,10 +73,10 @@ async def active_orders(message: Message):
             await message.answer("Store Manager account not found.")
             return
         orders = await repo.get_active_orders(hotel_user.hotel_id) # type: ignore
-        await send_orders(message, orders)
+        await send_orders(message, orders, lang=lang)
 
-@router.message(F.text == "📜 Order History")
-async def order_history(message: Message):
+@router.message(F.text.in_(ORDER_HISTORY_BTNS))
+async def order_history(message: Message, lang: str = "en"):
     async with AsyncSessionLocal() as session:
         repo = OrderRepository(session)
         hotel_user = await repo.get_hotel_by_telegram(message.from_user.id) # type: ignore
@@ -78,7 +84,7 @@ async def order_history(message: Message):
             await message.answer("Store Manager account not found.")
             return
         orders = await repo.get_order_history(hotel_user.hotel_id) # type: ignore
-        await send_orders(message, orders)
+        await send_orders(message, orders, lang=lang)
 
 @router.callback_query(F.data.startswith("open_order:"))
 async def open_order(callback: CallbackQuery):

@@ -14,19 +14,19 @@ from keyboards.customers import customer_menu, customer_reorder_menu
 from keyboards.store_manager import store_manager_menu
 from keyboards.admin_menu import admin_main_menu
 from keyboards.delivery import delivery_menu
+from utils.i18n import t
 
 router = Router()
 
 @router.message(CommandStart())
-async def start(message: Message, state: FSMContext, session: AsyncSession) -> None:
+async def start(message: Message, state: FSMContext, session: AsyncSession, lang: str = "en") -> None:
     await state.clear()
     assert message.from_user is not None
 
     if str(message.from_user.id) in SUPER_ADMIN_IDS:
         await message.answer(
-            "👑 Welcome Admin!\n\n"
-            "Use /admin to open the admin panel.",
-            reply_markup=admin_main_menu(),
+            t("welcome_admin", lang, name="Admin"),
+            reply_markup=admin_main_menu(lang),
             parse_mode="Markdown",
         )
         return
@@ -35,64 +35,61 @@ async def start(message: Message, state: FSMContext, session: AsyncSession) -> N
     auth = AuthService(user_repo)
     user = await auth.user_exists(message.from_user.id)
     if user:
-        await _show_user_menu(message, user, session)
+        user_lang = getattr(user, "language", lang) or lang
+        await _show_user_menu(message, user, session, lang=user_lang)
         return
     hotel_service = HotelService(session)
     hotels = await hotel_service.get_hotels()
     if not hotels:
-        await message.answer(
-            "❌ No hotels are available at the moment.\n"
-            "Please contact the administrator."
-        )
+        await message.answer(t("no_hotels", lang))
         return
 
     await message.answer(
-        "🏨 Welcome to Oyiru!\n\n"
-        "Please select your hotel to begin registration.",
-        reply_markup=hotels_keyboard(hotels),  # type: ignore
+        t("select_hotel", lang),
+        reply_markup=hotels_keyboard(hotels),
     )
 
 
-async def _show_user_menu(message: Message, user, session: AsyncSession) -> None:
+async def _show_user_menu(message: Message, user, session: AsyncSession, lang: str = "en") -> None:
+    user_lang = getattr(user, "language", lang) or lang
     if not user.is_active:
-        await message.answer(
-            "⏳ Your registration is pending approval by the administrator.\n"
-            "You will be notified once approved."
-        )
+        await message.answer(t("reg_pending", user_lang))
         return
+
     if user.role == UserRole.CUSTOMER:
         order_repo = OrderRepository(session)
         last_order = await order_repo.get_last_order(user.id)
         if last_order:
             await message.answer(
-                f"👋 Welcome back, {user.full_name}!",
-                reply_markup=customer_reorder_menu(),
+                t("welcome_back", user_lang, name=user.full_name),
+                reply_markup=customer_reorder_menu(user_lang),
             )
         else:
             await message.answer(
-                f"👋 Welcome back, {user.full_name}!",
-                reply_markup=customer_menu(),
+                t("welcome_back", user_lang, name=user.full_name),
+                reply_markup=customer_menu(user_lang),
             )
 
     elif user.role == UserRole.HOTEL:
         await message.answer(
-            f"👋 Welcome, {user.full_name}!",
-            reply_markup=store_manager_menu(),
+            t("welcome_user", user_lang, name=user.full_name),
+            reply_markup=store_manager_menu(user_lang),
         )
 
     elif user.role == UserRole.DELIVERY:
         await message.answer(
-            f"🚛 Welcome, {user.full_name}!",
-            reply_markup=delivery_menu(),
+            t("welcome_user", user_lang, name=user.full_name),
+            reply_markup=delivery_menu(user_lang),
         )
 
     elif user.role == UserRole.ADMIN:
         await message.answer(
-            f"👑 Welcome Admin, {user.full_name}!\n\nUse /admin to open the admin panel.",
-            reply_markup=admin_main_menu(),
+            t("welcome_admin", user_lang, name=user.full_name),
+            reply_markup=admin_main_menu(user_lang),
         )
 
     else:
         await message.answer(
-            f"👋 Welcome, {user.full_name}!\nRole: {user.role}"
+            t("welcome_user", user_lang, name=user.full_name)
         )
+

@@ -1,9 +1,14 @@
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8710717192:AAHNfwOej0IWmNqxxV7gYY67VMVKy7KnI_w")
+DATABASE_URL = os.getenv("DATABASE_URL", "mongodb+srv://ym47484988_db_user:sKZr5KRCuSPO9D0R@ethio-smart.i7vshtx.mongodb.net/?appName=Ethio-Smart")
+MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "oyiru_delivery_bot")
 
 ADMIN_ID = os.getenv("ADMIN_ID", "8223004316")
 
-# Super admins — comma-separated in env var, or hardcoded fallback
-# All IDs in this set get full admin access
 _extra = os.getenv("SUPER_ADMIN_IDS", "7269164159")
 SUPER_ADMIN_IDS: set[str] = {
     str(ADMIN_ID).strip(),

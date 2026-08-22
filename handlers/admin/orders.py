@@ -68,6 +68,10 @@ async def new_orders(message: Message, session: AsyncSession) -> None:
             await message.answer(text, reply_markup=kb, parse_mode="Markdown")
 
 
+from keyboards.delivery import delivery_menu
+from keyboards.store_manager import store_manager_menu
+from utils.i18n import t
+
 @router.callback_query(F.data.startswith("approve_user:"))
 async def approve_user(callback: CallbackQuery, session: AsyncSession) -> None:
     user_id = int(callback.data.split(":")[1]) # type: ignore
@@ -79,15 +83,21 @@ async def approve_user(callback: CallbackQuery, session: AsyncSession) -> None:
 
     await repo.set_active(user, True)
     try:
+        user_lang = getattr(user, "language", "en") or "en"
+        role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
+        if role_val == "delivery":
+            menu = delivery_menu(user_lang)
+        elif role_val == "hotel":
+            menu = store_manager_menu()
+        elif role_val == "admin":
+            menu = admin_main_menu()
+        else:
+            menu = customer_menu(user_lang)
+
         await callback.bot.send_message( # type: ignore
             chat_id=user.telegram_id,
-            text=(
-                "🎉 *Registration Approved!*\n\n"
-                "Your account has been approved by the administrator.\n"
-                "You can now place orders."
-            ),
-            reply_markup=customer_menu(),
-            parse_mode="Markdown",
+            text=t("reg_success", user_lang, name=user.full_name),
+            reply_markup=menu,
         )
     except Exception as e:
         logging.error(f"Failed to notify approved user {user.telegram_id}: {e}")

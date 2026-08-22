@@ -19,22 +19,26 @@ router = Router()
 router.message.filter(RoleFilter(["admin"]))
 router.callback_query.filter(RoleFilter(["admin"]))
 
-@router.message(F.text == "📦 Products")
-async def products_menu(message: Message, session: AsyncSession):
+from utils.i18n import t
+
+PRODUCTS_MENU_BTNS = ["📦 Products", "📦 ምርቶች", "📦 Oomishaalee"]
+
+@router.message(F.text.in_(PRODUCTS_MENU_BTNS))
+async def products_menu(message: Message, session: AsyncSession, lang: str = "en"):
     repo = CategoryRepository(session)
     cats = await repo.get_all()
     if not cats:
         await message.answer("No categories yet. Add a category first.")
         return
     await message.answer(
-        "📦 *Products*\n\nSelect a category to view its products:",
-        reply_markup=category_pick_keyboard(cats, "admin_cat_products"),
+        t("admin_products_title", lang),
+        reply_markup=category_pick_keyboard(cats, "admin_cat_products", lang=lang),
         parse_mode="Markdown",
     )
 
 
 @router.callback_query(F.data.startswith("admin_cat_products:"))
-async def products_for_category(callback: CallbackQuery, session: AsyncSession):
+async def products_for_category(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
     cat_id = int(callback.data.split(":")[1]) # type: ignore
     cat_repo = CategoryRepository(session)
     prod_repo = ProductRepository(session)
@@ -45,14 +49,14 @@ async def products_for_category(callback: CallbackQuery, session: AsyncSession):
     products = await prod_repo.get_all_by_category(cat_id)
     await callback.message.edit_text( # type: ignore
         f"📦 *{cat.name}* — Products ({len(products)})\n\n✅ = Active  ❌ = Inactive",
-        reply_markup=product_list_keyboard(products, cat_id),
+        reply_markup=product_list_keyboard(products, cat_id, lang=lang),
         parse_mode="Markdown",
     )
     await callback.answer()
 
 
 @router.callback_query(F.data.startswith("admin_prod:"))
-async def product_detail(callback: CallbackQuery, session: AsyncSession):
+async def product_detail(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
     prod_id = int(callback.data.split(":")[1]) # type: ignore
     prod_repo = ProductRepository(session)
     prod = await prod_repo.get_by_id(prod_id)
@@ -67,7 +71,7 @@ async def product_detail(callback: CallbackQuery, session: AsyncSession):
         f"📏 Unit: {prod.unit}\n"
         f"🗂 Category: {cat.name if cat else '—'}\n"
         f"Status: {status}",
-        reply_markup=product_detail_keyboard(prod),
+        reply_markup=product_detail_keyboard(prod, lang=lang),
         parse_mode="Markdown",
     )
     await callback.answer()

@@ -1,0 +1,17 @@
+﻿[Unit]
+Description=Oyiru Telegram Delivery Bot Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/oyiru_bot
+ExecStart=/var/www/oyiru_bot/venv/bin/python app.py
+Restart=always
+RestartSec=5
+EnvironmentFile=/var/www/oyiru_bot/.env
+StandardOutput=append:/var/www/oyiru_bot/logs/bot.log
+StandardError=append:/var/www/oyiru_bot/logs/bot_error.log
+
+[Install]
+WantedBy=multi-user.target

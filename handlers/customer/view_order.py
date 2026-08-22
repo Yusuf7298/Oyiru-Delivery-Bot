@@ -1,5 +1,6 @@
+from datetime import datetime, timezone
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, BufferedInputFile
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +11,8 @@ from database.repositories.product_repository import ProductRepository
 from states.order import OrderState
 from keyboards.customers import customer_menu, customer_reorder_menu
 from filters.role_filter import RoleFilter
+from utils.i18n import t
+from utils.excel_export import generate_customer_excel
 
 router = Router()
 router.message.filter(RoleFilter(["customer"]))
@@ -17,11 +20,11 @@ router.callback_query.filter(RoleFilter(["customer"]))
 
 PAGE_SIZE = 5
 _STATUS_ICON = {
-    "Submitted":       "📨",
+    "Submitted":       "📩",
     "Approved":        "✅",
     "Preparing":       "👨‍🍳",
     "Packed":          "📦",
-    "Out For Delivery": "🚛",
+    "Out For Delivery": "🚚",
     "Delivered":       "🎉",
     "Cancelled":       "❌",
 }
@@ -30,42 +33,44 @@ _STATUS_ICON = {
 def _status_icon(status_value: str) -> str:
     return _STATUS_ICON.get(status_value, "📌")
 
-def _list_keyboard(orders: list, page: int, total: int) -> object:
+def _list_keyboard(orders: list, page: int, total: int, lang: str = "en") -> object:
     builder = InlineKeyboardBuilder()
     for order in orders:
         date_str = order.created_at.strftime("%d %b %Y") if order.created_at else "—"
         hotel_name = order.hotel.name if order.hotel else "—"
         icon = _status_icon(order.status.value)
         builder.button(
-            text=f"{icon} {order.order_number}  ·  {date_str}  ·  {hotel_name}",
+            text=f"{icon} {order.order_number} · {date_str} · {hotel_name}",
             callback_data=f"hist_view:{order.id}:{page}",
         )
 
     nav = []
     total_pages = (total + PAGE_SIZE - 1) // PAGE_SIZE
     if page > 0:
-        nav.append(("⬅️ Prev", f"hist_page:{page - 1}"))
+        nav.append((t("btn_prev", lang), f"hist_page:{page - 1}"))
     if (page + 1) * PAGE_SIZE < total:
-        nav.append(("Next ➡️", f"hist_page:{page + 1}"))
+        nav.append((t("btn_next", lang), f"hist_page:{page + 1}"))
 
     for label, cb in nav:
         builder.button(text=label, callback_data=cb)
 
-    builder.button(text="❌ Close", callback_data="hist_close")
+    builder.button(text="📊 " + t("btn_export_orders", lang), callback_data="cust_export_orders")
+    builder.button(text=t("btn_close", lang), callback_data="hist_close")
 
     row_widths = [1] * len(orders)
     if nav:
         row_widths.append(len(nav))
+    row_widths.append(1)
     row_widths.append(1)
 
     builder.adjust(*row_widths)
     return builder.as_markup()
 
 
-def _detail_keyboard(order_id: int, page: int, is_upload: bool) -> object:
+def _detail_keyboard(order_id: int, page: int, is_upload: bool, lang: str = "en") -> object:
     builder = InlineKeyboardBuilder()
-    builder.button(text="🔁 Repeat Order",  callback_data=f"hist_repeat:{order_id}")
-    builder.button(text="⬅️ Back to List",  callback_data=f"hist_page:{page}")
+    builder.button(text=t("btn_repeat_order", lang),  callback_data=f"hist_repeat:{order_id}")
+    builder.button(text=t("btn_back_to_list", lang),  callback_data=f"hist_page:{page}")
     builder.adjust(1)
     return builder.as_markup()
 
@@ -84,7 +89,7 @@ def _order_detail_text(order) -> str:
     ]
 
     if order.driver_name:
-        lines.append(f"🚗 Driver: {order.driver_name}")
+        lines.append(f"🚚 Driver: {order.driver_name}")
     if order.delivered_at:
         lines.append(f"✅ Delivered: {_fmt_dt(order.delivered_at)}")
 
@@ -106,32 +111,31 @@ def _order_detail_text(order) -> str:
 
     return "\n".join(lines)
 
-@router.message(F.text == "📋 View Orders")
-async def view_orders(message: Message, session: AsyncSession):
+@router.message(F.text.in_(["📦 My Orders", "📦 View Orders", "📦 የኔ ትዕዛዞች", "📦 Ajajawwan Koo"]))
+async def view_orders(message: Message, session: AsyncSession, lang: str = "en"):
     user_repo = UserRepository(session)
-    customer = await user_repo.get_by_telegram_id(message.from_user.id) # type: ignore
+    customer = await user_repo.get_by_telegram_id(message.from_user.id)
     if not customer:
         await message.answer("❌ You are not registered.")
         return
 
     repo = OrderRepository(session)
-    all_orders = await repo.get_customer_orders(customer.id) # type: ignore
+    all_orders = await repo.get_customer_orders(customer.id)
     total = len(all_orders)
     if total == 0:
         await message.answer("📭 You haven't placed any orders yet.")
         return
 
-    # Show first page from the full list
     orders = all_orders[:PAGE_SIZE]
     await message.answer(
         f"📋 My Orders ({total} total)\n\nTap an order to see details.",
-        reply_markup=_list_keyboard(orders, 0, total), # type: ignore
+        reply_markup=_list_keyboard(orders, 0, total),
         parse_mode="Markdown",
     )
 
 @router.callback_query(F.data.startswith("hist_page:"))
-async def history_page(callback: CallbackQuery, session: AsyncSession):
-    page = int(callback.data.split(":")[1]) # type: ignore
+async def history_page(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
+    page = int(callback.data.split(":")[1])
     user_repo = UserRepository(session)
     customer = await user_repo.get_by_telegram_id(callback.from_user.id)
     if not customer:
@@ -139,21 +143,21 @@ async def history_page(callback: CallbackQuery, session: AsyncSession):
         return
 
     repo = OrderRepository(session)
-    all_orders = await repo.get_customer_orders(customer.id) # type: ignore
+    all_orders = await repo.get_customer_orders(customer.id)
     total = len(all_orders)
     offset = page * PAGE_SIZE
     orders = all_orders[offset: offset + PAGE_SIZE]
 
-    await callback.message.edit_text( # type: ignore
+    await callback.message.edit_text(
         f"📋 My Orders ({total} total)\n\nTap an order to see details.",
-        reply_markup=_list_keyboard(orders, page, total), # type: ignore
+        reply_markup=_list_keyboard(orders, page, total, lang=lang),
         parse_mode="Markdown",
     )
     await callback.answer()
 
 @router.callback_query(F.data.startswith("hist_view:"))
-async def history_view_detail(callback: CallbackQuery, session: AsyncSession):
-    parts = callback.data.split(":") # type: ignore
+async def history_view_detail(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
+    parts = callback.data.split(":")
     order_id = int(parts[1])
     page = int(parts[2]) if len(parts) > 2 else 0
     repo = OrderRepository(session)
@@ -163,16 +167,16 @@ async def history_view_detail(callback: CallbackQuery, session: AsyncSession):
         return
 
     is_upload = bool(order.file_path or order.telegram_file_id)
-    await callback.message.edit_text( # type: ignore
+    await callback.message.edit_text(
         _order_detail_text(order),
-        reply_markup=_detail_keyboard(order_id, page, is_upload), # type: ignore
+        reply_markup=_detail_keyboard(order_id, page, is_upload, lang=lang),
         parse_mode="Markdown",
     )
     await callback.answer()
 
 @router.callback_query(F.data.startswith("hist_repeat:"))
-async def history_repeat(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
-    order_id = int(callback.data.split(":")[1]) # type: ignore
+async def history_repeat(callback: CallbackQuery, state: FSMContext, session: AsyncSession, lang: str = "en"):
+    order_id = int(callback.data.split(":")[1])
     repo = OrderRepository(session)
     order = await repo.get_order(order_id)
     if not order:
@@ -183,7 +187,7 @@ async def history_repeat(callback: CallbackQuery, state: FSMContext, session: As
     if order.file_path or order.telegram_file_id:
         await state.update_data(order_method="upload", note=order.note)
         await state.set_state(OrderState.waiting_for_document)
-        await callback.message.answer( # type: ignore
+        await callback.message.answer(
             "📄 Repeat Upload Order\n\n"
             "Please upload a new file for this order:\n"
             "  • 📷 Photo\n"
@@ -222,29 +226,94 @@ async def history_repeat(callback: CallbackQuery, state: FSMContext, session: As
     await state.update_data(
         order_method="category",
         selected_cat_ids=selected_cat_ids,
-        cat_index=len(selected_cat_ids),  # skip quantity loop — go straight to review
+        cat_index=len(selected_cat_ids),
         quantities=quantities,
         note=order.note,
     )
     await state.set_state(OrderState.reviewing_order)
     from handlers.customer.order import _send_review
-    await callback.message.answer("🔁 *Repeat Order — Review*", parse_mode="Markdown") # type: ignore
+    await callback.message.answer("🔄 *Repeat Order — Review*", parse_mode="Markdown")
     class _Proxy:
         from_user = callback.from_user
-        chat = callback.message.chat # type: ignore
+        chat = callback.message.chat
         async def answer(self, *args, **kwargs):
-            return await callback.message.answer(*args, **kwargs) # type: ignore
+            return await callback.message.answer(*args, **kwargs)
 
-    await _send_review(_Proxy(), state, session) # type: ignore
+    await _send_review(_Proxy(), state, session, lang=lang)
     await callback.answer()
 
 @router.callback_query(F.data == "hist_close")
-async def history_close(callback: CallbackQuery, session: AsyncSession):
+async def history_close(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
     user_repo = UserRepository(session)
     customer = await user_repo.get_by_telegram_id(callback.from_user.id)
     order_repo = OrderRepository(session)
-    last = await order_repo.get_last_order(customer.id) if customer else None # type: ignore
-    menu = customer_reorder_menu() if last else customer_menu()
-    await callback.message.delete() # type: ignore
-    await callback.message.answer("Main menu:", reply_markup=menu) # type: ignore
+    last = await order_repo.get_last_order(customer.id) if customer else None
+    menu = customer_reorder_menu(lang) if last else customer_menu(lang)
+    await callback.message.delete()
+    await callback.message.answer("Main menu:", reply_markup=menu)
     await callback.answer()
+
+async def _send_customer_excel_report(target, user_id: int, session: AsyncSession, lang: str = "en"):
+    try:
+        user_repo = UserRepository(session)
+        customer = await user_repo.get_by_telegram_id(user_id)
+        if not customer:
+            msg = "❌ User profile not found."
+            if isinstance(target, CallbackQuery):
+                await target.message.answer(msg)
+            else:
+                await target.answer(msg)
+            return
+
+        order_repo = OrderRepository(session)
+        orders = await order_repo.get_customer_orders(customer.id)
+        if not orders:
+            msg = t("no_orders_to_export", lang)
+            if isinstance(target, CallbackQuery):
+                await target.message.answer(msg)
+            else:
+                await target.answer(msg)
+            return
+
+        xlsx_bytes = generate_customer_excel(customer, orders)
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
+        safe_name = "".join(c for c in (customer.full_name or "customer") if c.isalnum() or c in ('_', '-'))
+        filename = f"oyiru_orders_{safe_name}_{ts}.xlsx"
+        doc = BufferedInputFile(xlsx_bytes, filename=filename)
+
+        caption = (
+            f"📊 *Oyiru Customer Orders Export*\n\n"
+            f"👤 Customer: *{customer.full_name}*\n"
+            f"🏨 Hotel: *{customer.hotel.name if customer.hotel else '—'}*\n"
+            f"📦 Total Orders Exported: *{len(orders)}*\n"
+            f"📅 Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
+        )
+        if isinstance(target, CallbackQuery):
+            await target.message.answer_document(doc, caption=caption, parse_mode="Markdown")
+        else:
+            await target.answer_document(doc, caption=caption, parse_mode="Markdown")
+    except Exception as e:
+        logger.error(f"Customer Excel export failed: {e}")
+        err = f"❌ Export failed: {e}"
+        if isinstance(target, CallbackQuery):
+            await target.message.answer(err)
+        else:
+            await target.answer(err)
+
+CUSTOMER_EXPORT_BTNS = [
+    "📊 Export Orders (Excel)", "📊 Export Orders", "📊 Export Data",
+    "📊 ትዕዛዞችን አውርድ (Excel)", "📊 ትዕዛዞችን አውርድ",
+    "📊 Ajajawwan Buusi (Excel)", "📊 Ajajawwan Buusi"
+]
+
+@router.callback_query(F.data == "cust_export_orders")
+async def customer_export_callback(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
+    await callback.answer()
+    await callback.message.answer(t("exporting_excel", lang))
+    await _send_customer_excel_report(callback, callback.from_user.id, session, lang)
+
+@router.message(F.text.in_(CUSTOMER_EXPORT_BTNS))
+async def customer_export_message(message: Message, session: AsyncSession, lang: str = "en"):
+    await message.answer(t("exporting_excel", lang))
+    await _send_customer_excel_report(message, message.from_user.id, session, lang)
+

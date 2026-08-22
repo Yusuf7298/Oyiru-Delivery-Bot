@@ -19,6 +19,7 @@ class User(Base):
         phone: Optional[str] = None,
         role: Any = UserRole.CUSTOMER,
         hotel_id: Optional[int] = None,
+        language: str = "en",
         is_active: bool = True,
         created_at: Optional[datetime] = None,
         updated_at: Optional[datetime] = None,
@@ -43,6 +44,7 @@ class User(Base):
         else:
             self.role = role or UserRole.CUSTOMER
         self.hotel_id = hotel_id
+        self.language = language or "en"
         self.is_active = is_active
         self.created_at = created_at or datetime.utcnow()
         self.updated_at = updated_at or datetime.utcnow()
@@ -65,3 +67,4 @@ class User(Base):
         d = dict(data)
         d["id"] = d.get("id") or d.get("_id")
         return cls(**d)
+

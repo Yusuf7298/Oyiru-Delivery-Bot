@@ -37,27 +37,31 @@ ROLE_SYMBOLS = {
 }
 
 
-@router.message(F.text == "👥 Users")
-async def users_menu(message: Message):
+from utils.i18n import t
+
+USERS_MENU_BTNS = ["👥 Users", "👥 ተጠቃሚዎች", "👥 Fayyadamtoota"]
+
+@router.message(F.text.in_(USERS_MENU_BTNS))
+async def users_menu(message: Message, lang: str = "en"):
     await message.answer(
-        "👥 *User & Role Management*\n\nSelect a section to list and manage users by role:",
-        reply_markup=user_section_keyboard(),
+        t("admin_users_title", lang),
+        reply_markup=user_section_keyboard(lang=lang),
         parse_mode="Markdown",
     )
 
 
 @router.callback_query(F.data == "admin_users_back")
-async def users_back(callback: CallbackQuery):
+async def users_back(callback: CallbackQuery, lang: str = "en"):
     await callback.message.edit_text(  # type: ignore
-        "👥 *User & Role Management*\n\nSelect a section to list and manage users by role:",
-        reply_markup=user_section_keyboard(),
+        t("admin_users_title", lang),
+        reply_markup=user_section_keyboard(lang=lang),
         parse_mode="Markdown",
     )
     await callback.answer()
 
 
 @router.callback_query(F.data.startswith("admin_users_list:"))
-async def list_users_paginated(callback: CallbackQuery, session: AsyncSession):
+async def list_users_paginated(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
     parts = callback.data.split(":")  # type: ignore
     role_key = parts[1]
     page = int(parts[2]) if len(parts) > 2 else 1
@@ -73,7 +77,7 @@ async def list_users_paginated(callback: CallbackQuery, session: AsyncSession):
     if not users:
         await callback.message.edit_text(  # type: ignore
             f"👥 *{label}*\n\nNo users found in this section.",
-            reply_markup=back_keyboard("admin_users_back"),
+            reply_markup=back_keyboard("admin_users_back", lang=lang),
             parse_mode="Markdown",
         )
         await callback.answer()
@@ -115,7 +119,7 @@ async def list_users_paginated(callback: CallbackQuery, session: AsyncSession):
         builder.row(*nav_row)
 
     builder.row(
-        InlineKeyboardButton(text="⬅️ Back", callback_data="admin_users_back")
+        InlineKeyboardButton(text=t("btn_back", lang), callback_data="admin_users_back")
     )
 
     await callback.message.edit_text(  # type: ignore
@@ -130,28 +134,28 @@ async def list_users_paginated(callback: CallbackQuery, session: AsyncSession):
 
 # Legacy callback compatibility handlers redirecting to admin_users_list
 @router.callback_query(F.data == "admin_users_customers")
-async def list_customers_legacy(callback: CallbackQuery, session: AsyncSession):
+async def list_customers_legacy(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
     callback.data = "admin_users_list:customer:1"
-    await list_users_paginated(callback, session)
+    await list_users_paginated(callback, session, lang=lang)
 
 @router.callback_query(F.data == "admin_users_store_managers")
-async def list_store_managers_legacy(callback: CallbackQuery, session: AsyncSession):
+async def list_store_managers_legacy(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
     callback.data = "admin_users_list:hotel:1"
-    await list_users_paginated(callback, session)
+    await list_users_paginated(callback, session, lang=lang)
 
 @router.callback_query(F.data == "admin_users_delivery")
-async def list_delivery_legacy(callback: CallbackQuery, session: AsyncSession):
+async def list_delivery_legacy(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
     callback.data = "admin_users_list:delivery:1"
-    await list_users_paginated(callback, session)
+    await list_users_paginated(callback, session, lang=lang)
 
 @router.callback_query(F.data == "admin_users_admins")
-async def list_admins_legacy(callback: CallbackQuery, session: AsyncSession):
+async def list_admins_legacy(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
     callback.data = "admin_users_list:admin:1"
-    await list_users_paginated(callback, session)
+    await list_users_paginated(callback, session, lang=lang)
 
 
 @router.callback_query(F.data.startswith("admin_user_detail:"))
-async def user_detail(callback: CallbackQuery, session: AsyncSession):
+async def user_detail(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
     parts = callback.data.split(":")  # type: ignore
     user_id = int(parts[1])
     back_role = parts[2] if len(parts) > 2 else "all"
@@ -180,14 +184,14 @@ async def user_detail(callback: CallbackQuery, session: AsyncSession):
 
     await callback.message.edit_text(  # type: ignore
         text,
-        reply_markup=user_detail_keyboard(user, back_role=back_role, back_page=back_page),
+        reply_markup=user_detail_keyboard(user, back_role=back_role, back_page=back_page, lang=lang),
         parse_mode="Markdown",
     )
     await callback.answer()
 
 
 @router.callback_query(F.data.startswith("admin_user_deactivate:"))
-async def user_deactivate(callback: CallbackQuery, session: AsyncSession):
+async def user_deactivate(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
     parts = callback.data.split(":")  # type: ignore
     user_id = int(parts[1])
     back_role = parts[2] if len(parts) > 2 else "all"
@@ -202,12 +206,12 @@ async def user_deactivate(callback: CallbackQuery, session: AsyncSession):
     await repo.set_active(user, False)
     await callback.answer("🔴 User deactivated.", show_alert=True)
     await callback.message.edit_reply_markup(  # type: ignore
-        reply_markup=user_detail_keyboard(user, back_role=back_role, back_page=back_page)
+        reply_markup=user_detail_keyboard(user, back_role=back_role, back_page=back_page, lang=lang)
     )
 
 
 @router.callback_query(F.data.startswith("admin_user_activate:"))
-async def user_activate(callback: CallbackQuery, session: AsyncSession):
+async def user_activate(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
     parts = callback.data.split(":")  # type: ignore
     user_id = int(parts[1])
     back_role = parts[2] if len(parts) > 2 else "all"
@@ -222,12 +226,12 @@ async def user_activate(callback: CallbackQuery, session: AsyncSession):
     await repo.set_active(user, True)
     await callback.answer("🟢 User activated.", show_alert=True)
     await callback.message.edit_reply_markup(  # type: ignore
-        reply_markup=user_detail_keyboard(user, back_role=back_role, back_page=back_page)
+        reply_markup=user_detail_keyboard(user, back_role=back_role, back_page=back_page, lang=lang)
     )
 
 
 @router.callback_query(F.data.startswith("admin_user_change_role:"))
-async def user_change_role_prompt(callback: CallbackQuery, session: AsyncSession):
+async def user_change_role_prompt(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
     parts = callback.data.split(":")  # type: ignore
     user_id = int(parts[1])
     back_role = parts[2] if len(parts) > 2 else "all"
@@ -244,14 +248,14 @@ async def user_change_role_prompt(callback: CallbackQuery, session: AsyncSession
         f"🔑 *Change Role for {user.full_name}*\n"
         f"Current role: *{current_role_label}*\n\n"
         "Select the new role:",
-        reply_markup=role_pick_keyboard(user_id, back_role=back_role, back_page=back_page),
+        reply_markup=role_pick_keyboard(user_id, back_role=back_role, back_page=back_page, lang=lang),
         parse_mode="Markdown",
     )
     await callback.answer()
 
 
 @router.callback_query(F.data.startswith("admin_set_role:"))
-async def user_set_role(callback: CallbackQuery, session: AsyncSession):
+async def user_set_role(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
     parts = callback.data.split(":")  # type: ignore
     user_id = int(parts[1])
     new_role = parts[2]
@@ -267,6 +271,35 @@ async def user_set_role(callback: CallbackQuery, session: AsyncSession):
     await repo.set_role(user, new_role)
     role_label = ROLE_LABELS.get(new_role, new_role)
     await callback.answer(f"✅ Role updated to {role_label}", show_alert=True)
+
+    # Notify user of the role change
+    try:
+        from keyboards.customers import customer_menu
+        from keyboards.delivery import delivery_menu
+        from keyboards.store_manager import store_manager_menu
+        from keyboards.admin_menu import admin_main_menu
+        user_lang = getattr(user, "language", "en") or "en"
+        if new_role == "delivery":
+            u_menu = delivery_menu(user_lang)
+        elif new_role == "hotel":
+            u_menu = store_manager_menu(user_lang)
+        elif new_role == "admin":
+            u_menu = admin_main_menu(user_lang)
+        else:
+            u_menu = customer_menu(user_lang)
+
+        await callback.bot.send_message( # type: ignore
+            chat_id=user.telegram_id,
+            text=(
+                f"🎉 <b>Account Role Updated!</b>\n\n"
+                f"Your account role has been updated to: <b>{role_label}</b>.\n"
+                f"Use /start to open your dashboard."
+            ),
+            reply_markup=u_menu,
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        logger.warning(f"Failed to notify user {user.telegram_id} of role update: {e}")
 
     # Re-render user detail card with updated role
     role_label = ROLE_LABELS.get(user.role, user.role)
@@ -288,6 +321,6 @@ async def user_set_role(callback: CallbackQuery, session: AsyncSession):
 
     await callback.message.edit_text(  # type: ignore
         text,
-        reply_markup=user_detail_keyboard(user, back_role=back_role, back_page=back_page),
+        reply_markup=user_detail_keyboard(user, back_role=back_role, back_page=back_page, lang=lang),
         parse_mode="Markdown",
     )
