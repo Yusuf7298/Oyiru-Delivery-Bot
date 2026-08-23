@@ -26,7 +26,7 @@ ssh root@YOUR_YEGARA_SERVER_IP
 ## 🛠️ Step 2: Clone or Upload the Bot Code to the Server
 
 ### Option A: Via Git (Recommended)
-If your code is on GitHub / GitLab:
+If your code is on GitHub:
 ```bash
 cd /var/www
 git clone https://github.com/Yusuf7298/Oyiru-Delivery-Bot.git oyiru_bot
@@ -69,11 +69,12 @@ nano /var/www/oyiru_bot/.env
 
 Ensure your credentials are set:
 ```env
-BOT_TOKEN=YOUR_BOT_TOKEN_FROM_BOTFATHER
-DATABASE_URL=mongodb+srv://...
+BOT_TOKEN=8710717192:AAHNfwOej0IWmNqxxV7gYY67VMVKy7KnI_w
+DATABASE_URL=mongodb+srv://ym47484988_db_user:sKZr5KRCuSPO9D0R@ethio-smart.i7vshtx.mongodb.net/?appName=Ethio-Smart
 MONGODB_DB_NAME=oyiru_delivery_bot
 ADMIN_ID=8223004316
 SUPER_ADMIN_IDS=7269164159,8223004316
+DEV_MODE=false
 ```
 
 Save and exit in nano: Press `Ctrl + O`, then `Enter`, then `Ctrl + X`.
