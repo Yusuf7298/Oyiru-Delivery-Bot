@@ -23,16 +23,16 @@ async def send_orders(message: Message, orders, lang: str = "en"):
         return
     for order in orders:
         text = (
-            f"📦 Order: {order.order_number}\n"
-            f"👤 Customer: {order.customer.full_name}\n"
-            f"📌 Status: {order.status.value}\n"
+            f"📦 *Order*: {order.order_number}\n"
+            f"👤 *Customer*: {order.customer.full_name}\n"
+            f"📌 *Status*: {order.status.value}\n"
         )
         if order.driver_name:
-            text += f"🚚 Driver: {order.driver_name}\n"
-        text += "\n🛒 Products:\n"
+            text += f"🚚 *Driver*: {order.driver_name}\n"
+        text += "\n🛒 *Products / File*:\n"
 
         if order.file_path:
-            text += f"• Direct Upload Document\n"
+            text += f"• Direct Upload ({order.original_filename or 'File'})\n"
         else:
             for item in order.items:
                 text += f"• {item.product.name} - {item.quantity} KG\n"
@@ -42,12 +42,43 @@ async def send_orders(message: Message, orders, lang: str = "en"):
             text=t("btn_open_order", lang),
             callback_data=f"open_order:{order.id}",
         )
+        kb = builder.as_markup()
 
-        await message.answer(
-            text,
-            reply_markup=builder.as_markup(),
-            parse_mode="Markdown"
-        )
+        sent = False
+        if order.telegram_file_id:
+            try:
+                if order.file_type == "photo":
+                    await message.answer_photo(photo=order.telegram_file_id, caption=text, reply_markup=kb, parse_mode="Markdown")
+                else:
+                    await message.answer_document(document=order.telegram_file_id, caption=text, reply_markup=kb, parse_mode="Markdown")
+                sent = True
+            except Exception:
+                pass
+        if not sent and order.file_path:
+            import os
+            from aiogram.types import FSInputFile
+            candidate_paths = [
+                os.path.join(os.getcwd(), order.file_path) if not os.path.isabs(order.file_path) else order.file_path,
+                os.path.join(os.getcwd(), "uploads", os.path.basename(order.file_path)),
+                order.file_path,
+            ]
+            valid_path = next((p for p in candidate_paths if os.path.exists(p)), None)
+            if valid_path:
+                try:
+                    f = FSInputFile(valid_path)
+                    if order.file_type == "photo":
+                        await message.answer_photo(photo=f, caption=text, reply_markup=kb, parse_mode="Markdown")
+                    else:
+                        await message.answer_document(document=f, caption=text, reply_markup=kb, parse_mode="Markdown")
+                    sent = True
+                except Exception:
+                    pass
+        if not sent:
+            await message.answer(
+                text,
+                reply_markup=kb,
+                parse_mode="Markdown"
+            )
 
 NEW_ORDERS_BTNS = ["📥 New Orders", "📥 አዳዲስ ትዕዛዞች", "📥 Ajajawwan Haaraa"]
 ACTIVE_ORDERS_BTNS = ["📦 Active Orders", "📦 የሚሰሩ ትዕዛዞች", "📦 Ajajawwan Hojii Irra Jiran"]

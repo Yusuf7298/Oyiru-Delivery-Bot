@@ -88,37 +88,55 @@ async def _send_order_media(
         if cid == 0:
             return
 
-        is_photo = (file_type == "photo")
+        # Ensure caption fits Telegram's 1024 character limit for media
+        safe_caption = caption
+        overflow_text = None
+        if len(caption) > 1020:
+            safe_caption = caption[:1015] + "..."
+            overflow_text = "..." + caption[1015:]
+
+        # Detect photo file type
+        ext = ""
+        if file_path:
+            ext = os.path.splitext(file_path)[1].lower()
+        is_photo = (file_type == "photo" or ext in [".jpg", ".jpeg", ".png", ".webp"])
 
         # 1. Try sending via telegram_file_id
         if telegram_file_id:
             try:
                 if is_photo:
-                    await bot.send_photo(chat_id=cid, photo=telegram_file_id, caption=caption, **kwargs)
-                    return
+                    await bot.send_photo(chat_id=cid, photo=telegram_file_id, caption=safe_caption, **kwargs)
                 else:
-                    await bot.send_document(chat_id=cid, document=telegram_file_id, caption=caption, **kwargs)
-                    return
+                    await bot.send_document(chat_id=cid, document=telegram_file_id, caption=safe_caption, **kwargs)
+                if overflow_text:
+                    await bot.send_message(chat_id=cid, text=overflow_text, **kwargs)
+                return
             except Exception as exc_tfid:
                 logging.warning(f"send_photo/document with telegram_file_id to {cid} failed: {exc_tfid}. Trying local file_path.")
 
         # 2. Try sending via local file_path
         if file_path:
-            full_path = os.path.join(os.getcwd(), file_path) if not os.path.isabs(file_path) else file_path
-            if os.path.exists(full_path):
+            candidate_paths = [
+                os.path.join(os.getcwd(), file_path) if not os.path.isabs(file_path) else file_path,
+                os.path.join(os.getcwd(), "uploads", os.path.basename(file_path)),
+                file_path,
+            ]
+            valid_path = next((p for p in candidate_paths if os.path.exists(p)), None)
+            if valid_path:
                 from aiogram.types import FSInputFile
-                file_input = FSInputFile(full_path)
+                file_input = FSInputFile(valid_path)
                 try:
                     if is_photo:
-                        await bot.send_photo(chat_id=cid, photo=file_input, caption=caption, **kwargs)
-                        return
+                        await bot.send_photo(chat_id=cid, photo=file_input, caption=safe_caption, **kwargs)
                     else:
-                        await bot.send_document(chat_id=cid, document=file_input, caption=caption, **kwargs)
-                        return
+                        await bot.send_document(chat_id=cid, document=file_input, caption=safe_caption, **kwargs)
+                    if overflow_text:
+                        await bot.send_message(chat_id=cid, text=overflow_text, **kwargs)
+                    return
                 except Exception as exc_fp:
                     logging.warning(f"send_photo/document with FSInputFile to {cid} failed: {exc_fp}. Fallback to text.")
 
-        # 3. Fallback to text message
+        # 3. Fallback to text message if media could not be sent
         await bot.send_message(chat_id=cid, text=caption, **kwargs)
     except Exception as e:
         logging.error(f"Notification to {chat_id} failed: {e}")

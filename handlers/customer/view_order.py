@@ -242,6 +242,46 @@ async def history_repeat(callback: CallbackQuery, state: FSMContext, session: As
     await _send_review(_Proxy(), state, session, lang=lang)
     await callback.answer()
 
+@router.callback_query(F.data.startswith("hist_file:"))
+async def history_download_file(callback: CallbackQuery, session: AsyncSession):
+    order_id = int(callback.data.split(":")[1])
+    repo = OrderRepository(session)
+    order = await repo.get_order(order_id)
+    if not order or not (order.file_path or order.telegram_file_id):
+        await callback.answer("❌ File not found for this order.", show_alert=True)
+        return
+
+    await callback.answer("Sending file...")
+    caption = f"📎 Attached file for Order {order.order_number}"
+    if order.telegram_file_id:
+        try:
+            if order.file_type == "photo":
+                await callback.message.answer_photo(photo=order.telegram_file_id, caption=caption)
+            else:
+                await callback.message.answer_document(document=order.telegram_file_id, caption=caption)
+            return
+        except Exception as e:
+            logger.warning(f"hist_file via file_id failed: {e}")
+
+    if order.file_path:
+        import os
+        from aiogram.types import FSInputFile
+        candidate_paths = [
+            os.path.join(os.getcwd(), order.file_path) if not os.path.isabs(order.file_path) else order.file_path,
+            os.path.join(os.getcwd(), "uploads", os.path.basename(order.file_path)),
+            order.file_path,
+        ]
+        valid_path = next((p for p in candidate_paths if os.path.exists(p)), None)
+        if valid_path:
+            f = FSInputFile(valid_path)
+            if order.file_type == "photo":
+                await callback.message.answer_photo(photo=f, caption=caption)
+            else:
+                await callback.message.answer_document(document=f, caption=caption)
+            return
+
+    await callback.message.answer("❌ Could not load the attached file from server storage.")
+
 @router.callback_query(F.data == "hist_close")
 async def history_close(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
     user_repo = UserRepository(session)

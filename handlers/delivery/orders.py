@@ -111,11 +111,36 @@ async def active_delivery(message: Message, session: AsyncSession, lang: str = "
     for order in orders:
         accepted_str = _fmt_time(order.accepted_at)
         text = _order_card(order) + f"\n⏱ Accepted: {accepted_str}"
-        await message.answer(
-            text,
-            reply_markup=active_order_keyboard(order.id, lang=lang),
-            parse_mode="Markdown",
-        )
+        kb = active_order_keyboard(order.id, lang=lang)
+        if order.telegram_file_id or order.file_path:
+            sent = False
+            if order.telegram_file_id:
+                try:
+                    if order.file_type == "photo":
+                        await message.answer_photo(photo=order.telegram_file_id, caption=text, reply_markup=kb, parse_mode="Markdown")
+                    else:
+                        await message.answer_document(document=order.telegram_file_id, caption=text, reply_markup=kb, parse_mode="Markdown")
+                    sent = True
+                except Exception as e:
+                    logger.warning(f"Driver active card via file_id failed: {e}")
+            if not sent and order.file_path:
+                import os
+                from aiogram.types import FSInputFile
+                full_path = os.path.join(os.getcwd(), order.file_path) if not os.path.isabs(order.file_path) else order.file_path
+                if os.path.exists(full_path):
+                    try:
+                        f = FSInputFile(full_path)
+                        if order.file_type == "photo":
+                            await message.answer_photo(photo=f, caption=text, reply_markup=kb, parse_mode="Markdown")
+                        else:
+                            await message.answer_document(document=f, caption=text, reply_markup=kb, parse_mode="Markdown")
+                        sent = True
+                    except Exception as e:
+                        logger.warning(f"Driver active card via FSInputFile failed: {e}")
+            if not sent:
+                await message.answer(text, reply_markup=kb, parse_mode="Markdown")
+        else:
+            await message.answer(text, reply_markup=kb, parse_mode="Markdown")
 
 @router.message(F.text.in_(DELIVERY_HISTORY_BTNS))
 async def delivery_history(message: Message, session: AsyncSession, lang: str = "en"):
