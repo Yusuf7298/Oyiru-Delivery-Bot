@@ -16,26 +16,47 @@ router = Router()
 router.message.filter(RoleFilter(["admin"]))
 router.callback_query.filter(RoleFilter(["admin"]))
 
-@router.message(F.text == "📦 New Orders")
-async def new_orders(message: Message, session: AsyncSession) -> None:
+ADMIN_ORDERS_BTNS = [
+    "📥 New Orders", "📦 New Orders", "📥 አዳዲስ ትዕዛዞች", "📥 Ajajawwan Haaraa",
+    "New Orders", "/orders", "/new_orders"
+]
+
+@router.message(F.text.in_(ADMIN_ORDERS_BTNS))
+async def new_orders(message: Message, session: AsyncSession, lang: str = "en") -> None:
     repo = OrderRepository(session)
     orders = await repo.pending_orders()
     if not orders:
-        await message.answer("✅ No pending orders.")
+        no_orders_text = "✅ No pending orders."
+        if lang == "am":
+            no_orders_text = "✅ ምንም የሚጠብቁ አዳዲስ ትዕዛዞች የሉም።"
+        elif lang == "om":
+            no_orders_text = "✅ Ajajawwan haaraa eegaa jiran hin jiran."
+        await message.answer(no_orders_text)
         return
+
     for order in orders:
         hotel    = order.hotel.name         if order.hotel    else "—"
         customer = order.customer.full_name if order.customer else "—"
+        status_str = order.status.value if hasattr(order.status, "value") else str(order.status)
         text = (
             f"🆔 *{order.order_number}*\n"
-            f"🏨 Hotel: {hotel}\n"
-            f"👤 Customer: {customer}\n"
-            f"📌 Status: {order.status.value}"
+            f"🏨 Hotel: *{hotel}*\n"
+            f"👤 Customer: *{customer}*\n"
+            f"📌 Status: *{status_str}*"
         )
+        if getattr(order, "items", None):
+            items_list = [
+                f"  • {item.product.name} — {item.quantity} {item.product.unit}"
+                for item in order.items
+                if getattr(item, "product", None)
+            ]
+            if items_list:
+                text += "\n\n🛒 *Products Ordered:*\n" + "\n".join(items_list)
+
         if order.file_path:
-            text += f"\n📁 Type: Upload ({order.original_filename or 'file'})"
+            text += f"\n📁 *Type*: Upload ({order.original_filename or 'file'})"
         if order.note:
-            text += f"\n📝 Note: {order.note}"
+            text += f"\n📝 *Note*: _{order.note}_"
 
         kb = assign_driver_keyboard(order.id)
         sent = False
