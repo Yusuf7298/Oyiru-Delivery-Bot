@@ -149,7 +149,7 @@ async def order_history(message: Message, session: AsyncSession):
         await _send_order_card(message, order)
 
 @router.callback_query(F.data.startswith("sm_approve:"))
-async def approve_start(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+async def approve_start(callback: CallbackQuery, session: AsyncSession):
     order_id = int(callback.data.split(":")[1]) # type: ignore
     repo = OrderRepository(session)
     order = await repo.get_order(order_id)
@@ -157,20 +157,29 @@ async def approve_start(callback: CallbackQuery, state: FSMContext, session: Asy
     if not order:
         await callback.answer("Order not found.", show_alert=True)
         return
-    if order.status != OrderStatus.SUBMITTED:
+    if order.status != OrderStatus.SUBMITTED.value and order.status != OrderStatus.SUBMITTED:
         await callback.answer(
-            f"⚠️ This order is already {order.status.value} and cannot be approved.",
+            f"⚠️ This order is already {order.status.value if hasattr(order.status, 'value') else order.status} and cannot be approved.",
             show_alert=True,
         )
         return
 
-    await state.update_data(approving_order_id=order_id)
-    await state.set_state(StoreManagerState.waiting_for_driver_name)
-    await callback.message.answer( # type: ignore
-        f"✅ Approving order {order.order_number}\n\n"
-        "Enter the internal driver name for this delivery:",
-        parse_mode="Markdown",
+    drivers = await UserRepository(session).get_delivery_partners()
+    if not drivers:
+        await callback.answer("❌ No active delivery partners found.", show_alert=True)
+        return
+
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(
+                text=f"🚗 {driver.full_name}",
+                callback_data=f"sm_pick_driver:{order_id}:{driver.id}",
+            )]
+            for driver in drivers
+        ] + [[InlineKeyboardButton(text="❌ Cancel", callback_data=f"sm_driver_cancel:{order_id}")]]
     )
+    await callback.message.edit_reply_markup(reply_markup=keyboard) # type: ignore
     await callback.answer()
 
 @router.message(StoreManagerState.waiting_for_driver_name)

@@ -149,12 +149,28 @@ async def open_order(callback: CallbackQuery):
     await callback.answer()
 
 @router.callback_query(F.data.startswith("approve_prompt:"))
-async def approve_prompt(callback: CallbackQuery, state: FSMContext):
+async def approve_prompt(callback: CallbackQuery):
     order_id = int(callback.data.split(":")[1]) # type: ignore
-    await state.update_data(approving_order_id=order_id)
-    await state.set_state(StoreManagerState.waiting_for_driver_name)
-    await callback.message.answer("🚚 Please enter the name of the internal driver for this order:") # type: ignore
-    await callback.answer()
+    async with AsyncSessionLocal() as session:
+        from database.repositories.user_repository import UserRepository
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+        user_repo = UserRepository(session)
+        drivers = await user_repo.get_delivery_partners()
+        if not drivers:
+            await callback.answer("❌ No active delivery partners found.", show_alert=True)
+            return
+
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(
+                    text=f"🚗 {driver.full_name}",
+                    callback_data=f"sm_pick_driver:{order_id}:{driver.id}",
+                )]
+                for driver in drivers
+            ] + [[InlineKeyboardButton(text="❌ Cancel", callback_data=f"open_order:{order_id}")]]
+        )
+        await callback.message.edit_reply_markup(reply_markup=keyboard) # type: ignore
+        await callback.answer()
 
 # Handle Driver Name Input
 @router.message(StoreManagerState.waiting_for_driver_name)

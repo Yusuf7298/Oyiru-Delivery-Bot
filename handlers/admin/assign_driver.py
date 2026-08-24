@@ -105,11 +105,17 @@ async def _do_assign(callback: CallbackQuery, session: AsyncSession,
         await callback.answer("Order not found.", show_alert=True)
         return
 
-    if order.status in (OrderStatus.OUT_FOR_DELIVERY, OrderStatus.DELIVERED, OrderStatus.CANCELLED):
+    status_val = order.status.value if hasattr(order.status, "value") else str(order.status)
+    if status_val in (OrderStatus.OUT_FOR_DELIVERY.value, OrderStatus.DELIVERED.value, OrderStatus.CANCELLED.value):
         await callback.answer(
-            f"Cannot assign driver — order is already {order.status.value}.",
+            f"Cannot assign driver — order is already {status_val}.",
             show_alert=True,
         )
+        return
+
+    driver = await user_repo.get(driver_id)
+    if not driver:
+        await callback.answer("Driver not found.", show_alert=True)
         return
 
     order, code = await order_repo.assign_driver(order_id, driver_id)
@@ -120,11 +126,11 @@ async def _do_assign(callback: CallbackQuery, session: AsyncSession,
         await callback.answer(f"❌ Could not assign driver ({code}).", show_alert=True)
         return
 
-    driver = await user_repo.get(driver_id)
-    if not driver:
-        await callback.answer("Driver not found.", show_alert=True)
-        return
+    # Update driver name explicitly
+    order.driver_name = driver.full_name
+    await order_repo.add(order)
 
+    # 1. Notify assigned driver
     try:
         await notify_driver_assigned(
             callback.bot, order, driver.telegram_id, driver.full_name # type: ignore
@@ -132,8 +138,33 @@ async def _do_assign(callback: CallbackQuery, session: AsyncSession,
     except Exception as e:
         logging.error(f"Failed to notify driver {driver.telegram_id}: {e}")
 
-    await callback.message.edit_text( # type: ignore
-        f"✅ *{driver.full_name}* assigned to order *{order.order_number}*.",
-        parse_mode="Markdown",
+    # 2. Notify customer that order is approved with driver assigned
+    if order.customer:
+        try:
+            await notify_customer_status_update(callback.bot, order, order.customer.telegram_id) # type: ignore
+        except Exception as e:
+            logging.error(f"Failed to notify customer: {e}")
+
+    # 3. Notify sales managers
+    try:
+        await notify_sales_managers(callback.bot, order, "Approved & Driver Assigned") # type: ignore
+    except Exception as e:
+        logging.error(f"Failed to notify sales managers: {e}")
+
+    from keyboards.order_status import order_status_keyboard
+    from utils.helpers import safe_edit_text_or_caption
+    
+    text = (
+        f"📦 *Order*: {order.order_number}\n"
+        f"👤 *Customer*: {order.customer.full_name if order.customer else '—'}\n"
+        f"📌 *Status*: {order.status.value if hasattr(order.status, 'value') else order.status}\n"
+        f"🚗 *Driver*: {driver.full_name}\n\n"
+        f"✅ *{driver.full_name}* assigned to order *{order.order_number}*."
     )
-    await callback.answer("Driver assigned!")
+    await safe_edit_text_or_caption(
+        callback,
+        text,
+        reply_markup=order_status_keyboard(order),
+        parse_mode="Markdown"
+    )
+    await callback.answer("✅ Driver assigned!")
