@@ -82,7 +82,7 @@ Users can switch languages anytime by sending `/language` or tapping the **🌐 
 ## 🛠️ Project Structure
 
 ```text
-Oyiru Delivery Bot/
+Oyirubot/
 ├── app.py                 # Main bot launcher & polling loop
 ├── config/                # Environment & Logging configuration
 ├── database/              # Database models & repositories

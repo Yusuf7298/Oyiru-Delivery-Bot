@@ -1,9 +1,9 @@
-﻿version: '3.8'
+version: '3.8'
 
 services:
-  oyiru-bot:
+  oyirubot:
     build: .
-    container_name: oyiru_delivery_bot
+    container_name: oyirubot
     restart: always
     env_file:
       - .env
