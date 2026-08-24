@@ -1,8 +1,8 @@
 {
-    "welcome_title": "🏨 Welcome to Oyiru Delivery!",
+    "welcome_title": "🏨 Welcome to Oyirubot!",
     "select_language": "🌐 Please select your preferred language / ቋንቋዎን ይምረጡ / Afaan keessan filadhaa:",
     "lang_changed": "✅ Language changed to English successfully!",
-    "select_hotel": "🏨 Welcome to Oyiru Delivery!\n\nPlease select your hotel to begin registration.",
+    "select_hotel": "🏨 Welcome to Oyirubot!\n\nPlease select your hotel to begin registration.",
     "no_hotels": "❌ No hotels are available at the moment.\nPlease contact administrator.",
     "enter_name": "✅ Hotel selected.\n\nPlease enter your full name:",
     "enter_phone": "📱 Enter your phone number:",

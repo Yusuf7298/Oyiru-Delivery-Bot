@@ -85,10 +85,10 @@ async def global_error_handler(event):
     return True
 
 async def main():
-    print("Starting Oyiru Delivery Bot in Long-Polling Mode...")
+    print("Starting Oyirubot in Long-Polling Mode...")
     # Explicitly remove any active webhook so polling works seamlessly without port/SSL issues
     await bot.delete_webhook(drop_pending_updates=True)
-    print("✅ Webhooks cleared. Bot Long-Polling Started Successfully!")
+    print("✅ Webhooks cleared. Oyirubot Long-Polling Started Successfully!")
     await dp.start_polling(bot, drop_pending_updates=True)
 
 

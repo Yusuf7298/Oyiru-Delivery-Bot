@@ -1,6 +1,6 @@
-﻿# 🏨 Oyiru Delivery Telegram Bot
+# 🏨 Oyirubot Telegram Bot
 
-Welcome to **Oyiru Delivery Bot** — a modern, multi-lingual Telegram Bot for hotel food & item delivery, multi-role user management, and order tracking.
+Welcome to **Oyirubot** — a modern, multi-lingual Telegram Bot for hotel food & item delivery, multi-role user management, and order tracking.
 
 ---
 

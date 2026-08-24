@@ -35,9 +35,9 @@ async def start(message: Message,state,session: AsyncSession,):
     
     else:
         await message.answer(
-            "👋 Welcome to Oyiru Delivery.\n\n"
+            "👋 Welcome to Oyirubot.\n\n"
             "Let's create your account.\n\n"
             "Enter your full name:"
-                )
+        )
         await state.set_state(
             RegistrationState.full_name)

@@ -302,11 +302,11 @@ async def driver_export_deliveries(message: Message, session: AsyncSession, lang
         xlsx_bytes = generate_driver_excel(driver, orders)
         ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
         safe_name = "".join(c for c in (driver.full_name or "driver") if c.isalnum() or c in ('_', '-'))
-        filename = f"oyiru_deliveries_{safe_name}_{ts}.xlsx"
+        filename = f"oyirubot_deliveries_{safe_name}_{ts}.xlsx"
         doc = BufferedInputFile(xlsx_bytes, filename=filename)
 
         caption = (
-            f"📊 *Oyiru Delivery Partner Report*\n\n"
+            f"📊 *Oyirubot Delivery Partner Report*\n\n"
             f"🚚 Driver: *{driver.full_name}*\n"
             f"📦 Total Deliveries Exported: *{len(orders)}*\n"
             f"📅 Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"

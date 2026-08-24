@@ -30,11 +30,11 @@ async def send_excel_report(target, session: AsyncSession):
         xlsx_bytes = generate_excel(orders, stats, returns_map)
 
         ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
-        filename = f"oyiru_superadmin_weekly_report_{ts}.xlsx"
+        filename = f"oyirubot_superadmin_weekly_report_{ts}.xlsx"
 
         doc = BufferedInputFile(xlsx_bytes, filename=filename)
         caption = (
-            "📊 *Oyiru Super Admin Weekly Report*\n\n"
+            "📊 *Oyirubot Super Admin Weekly Report*\n\n"
             f"📅 Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n"
             f"📦 Total Orders Exported: *{len(orders)}*\n\n"
             "Included Sheets:\n"

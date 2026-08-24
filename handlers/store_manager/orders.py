@@ -364,7 +364,7 @@ async def message_customer_send(message: Message, state: FSMContext):
         await message.bot.send_message( # type: ignore
             chat_id=customer_tid,
             text=(
-                f"📢 *Message from Oyiru Store Manager*\n\n"
+                f"📢 *Message from Oyirubot Store Manager*\n\n"
                 f"{message.text}"
             ),
             parse_mode="Markdown",

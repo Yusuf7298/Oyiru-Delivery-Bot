@@ -60,7 +60,7 @@ async def _gather_stats(repo: AnalyticsRepository) -> dict:
 
 
 def _format_stats(s: dict) -> str:
-    lines = ["📊 *Oyiru Analytics Dashboard*\n"]
+    lines = ["📊 *Oyirubot Analytics Dashboard*\n"]
     lines.append("📅 *Orders by Period*")
     lines.append(f"  Today:      *{s['today']}*")
     lines.append(f"  This Week:  *{s['week']}*")

@@ -1,5 +1,5 @@
-﻿[Unit]
-Description=Oyiru Telegram Delivery Bot Service
+[Unit]
+Description=Oyirubot Telegram Service
 After=network.target
 
 [Service]

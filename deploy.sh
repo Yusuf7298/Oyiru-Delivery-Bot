@@ -1,11 +1,11 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 set -e
 
 PROJECT_DIR="/var/www/oyiru_bot"
 cd $PROJECT_DIR
 
 echo "=========================================================="
-echo "   🔄 UPDATING OYIRU DELIVERY BOT"
+echo "   🔄 UPDATING OYIRUBOT"
 echo "=========================================================="
 
 # 1. Pull latest code if git repo

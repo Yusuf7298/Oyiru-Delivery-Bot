@@ -1,8 +1,8 @@
 {
-    "welcome_title": "🏨 ወደ ኦዪሩ ዲሊቨሪ እንኳን በደህና መጡ!",
+    "welcome_title": "🏨 ወደ ኦዪሩቦት (Oyirubot) እንኳን በደህና መጡ!",
     "select_language": "🌐 እባክዎን የሚፈልጉትን ቋንቋ ይምረጡ / Please select your language / Afaan filadhaa:",
     "lang_changed": "✅ ቋንቋው በተሳካ ሁኔታ ወደ አማርኛ ተቀይሯል!",
-    "select_hotel": "🏨 ወደ ኦዪሩ ዲሊቨሪ እንኳን በደህና መጡ!\n\nለመቀጠል እባክዎን ሆቴልዎን ይምረጡ።",
+    "select_hotel": "🏨 ወደ ኦዪሩቦት (Oyirubot) እንኳን በደህና መጡ!\n\nለመቀጠል እባክዎን ሆቴልዎን ይምረጡ።",
     "no_hotels": "❌ በአሁኑ ጊዜ ምንም उपलब्ध ሆቴሎች የሉም።\nእባክዎን አስተዳዳሪውን ያነጋግሩ።",
     "enter_name": "✅ ሆቴል ተመርጧል።\n\nእባክዎን ሙሉ ስምዎን ያስገቡ:",
     "enter_phone": "📱 እባክዎን ስልክ ቁጥርዎን ያስገቡ:",

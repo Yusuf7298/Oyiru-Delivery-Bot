@@ -1,8 +1,8 @@
-﻿#!/usr/bin/env bash
+#!/usr/bin/env bash
 set -e
 
 echo "=========================================================="
-echo "   🚀 OYIRU DELIVERY BOT - SERVER INITIAL SETUP (YEGARA)"
+echo "   🚀 OYIRUBOT - SERVER INITIAL SETUP (YEGARA)"
 echo "=========================================================="
 
 # 1. Update OS Packages

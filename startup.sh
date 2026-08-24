@@ -1,5 +1,5 @@
 #!/bin/bash
-echo "=== Oyiru Delivery Bot Startup ==="
+echo "=== Oyirubot Startup ==="
 
 cd /home/site/wwwroot
 

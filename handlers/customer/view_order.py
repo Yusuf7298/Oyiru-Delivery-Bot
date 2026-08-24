@@ -278,11 +278,11 @@ async def _send_customer_excel_report(target, user_id: int, session: AsyncSessio
         xlsx_bytes = generate_customer_excel(customer, orders)
         ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
         safe_name = "".join(c for c in (customer.full_name or "customer") if c.isalnum() or c in ('_', '-'))
-        filename = f"oyiru_orders_{safe_name}_{ts}.xlsx"
+        filename = f"oyirubot_orders_{safe_name}_{ts}.xlsx"
         doc = BufferedInputFile(xlsx_bytes, filename=filename)
 
         caption = (
-            f"📊 *Oyiru Customer Orders Export*\n\n"
+            f"📊 *Oyirubot Customer Orders Export*\n\n"
             f"👤 Customer: *{customer.full_name}*\n"
             f"🏨 Hotel: *{customer.hotel.name if customer.hotel else '—'}*\n"
             f"📦 Total Orders Exported: *{len(orders)}*\n"

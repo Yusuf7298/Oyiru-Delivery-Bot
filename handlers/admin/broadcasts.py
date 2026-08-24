@@ -75,7 +75,7 @@ async def _send_to_user(bot, user, data: dict) -> str:
 
     ctype   = data.get("content_type")
     caption = data.get("caption") or None
-    prefix  = "📢 *Message from Oyiru*\n\n"
+    prefix  = "📢 *Message from Oyirubot*\n\n"
 
     try:
         if ctype == "text":
