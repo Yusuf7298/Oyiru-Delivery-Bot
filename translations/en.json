@@ -112,5 +112,18 @@
     "status_label": "📌 Status",
     "driver_label": "🚚 Driver",
     "address_label": "📍 Address",
-    "phone_label": "📞 Phone"
+    "phone_label": "📞 Phone",
+    "btn_my_staff": "👥 My Staff",
+    "btn_invite_staff": "🔗 Invite Staff",
+    "btn_staff_list": "📋 Staff List",
+    "btn_export_hotel_excel": "📊 Export Hotel Orders (Excel)",
+    "no_unclaimed_hotels_msg": "🏨 All registered hotels are currently claimed by their Hotel Admins.\n\nTo register as an ordering staff member for your hotel, please ask your Hotel Admin for your hotel invite link.",
+    "staff_invite_link_msg": "🔗 *Hotel Staff Invite Link*\n\nShare this link with your hotel staff who make orders:\n{link}\n\nWhen they open this link, they will be registered directly under *{hotel_name}*.",
+    "hotel_staff_mgmt_title": "👥 *Staff Management — {hotel_name}*\n\nTotal Registered Staff: {count}",
+    "hotel_orders_export_caption": "📊 *{hotel_name} — Order Records Export*\n\n📦 Total Orders: *{count}*\n📅 Generated: {date}",
+    "welcome_hotel_admin": "🏨 Welcome back, Hotel Admin {name}!",
+    "select_hotel_admin_title": "🏨 *Hotel Registration*\n\nPlease select your hotel to register as the Hotel Administrator:",
+    "staff_invite_registered": "✅ Welcome to {hotel_name}!\n\nPlease enter your *full name* to complete your staff registration:",
+    "staff_deactivated": "⏸️ Staff member deactivated.",
+    "staff_activated": "▶️ Staff member activated."
 }

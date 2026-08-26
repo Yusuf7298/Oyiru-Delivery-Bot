@@ -17,13 +17,14 @@ from keyboards.customer.order import (
     skip_note_keyboard,
 )
 from keyboards.customers import customer_menu, customer_reorder_menu
+from keyboards.store_manager import store_manager_menu
 from filters.role_filter import RoleFilter
 from utils.i18n import t
 
 router = Router()
 
-router.message.filter(RoleFilter(["customer"]))
-router.callback_query.filter(RoleFilter(["customer"]))
+router.message.filter(RoleFilter(["customer", "hotel"]))
+router.callback_query.filter(RoleFilter(["customer", "hotel"]))
 
 _QTY_RE = re.compile(
     r"^(.+?)\s*[-=:]\s*([0-9]+(?:\.[0-9]+)?)(?:\s*(?:kg|kilos|kilo|pcs|gm|g|l|liter|litre))?$"
@@ -340,7 +341,11 @@ async def submit_order(callback: CallbackQuery, state: FSMContext, session: Asyn
     except Exception as exc:
         logger.error(f"Notification failed for {order.order_number}: {exc}")
     last = await OrderRepository(session).get_last_order(customer.id)
-    menu = customer_reorder_menu() if last else customer_menu()
+    role_val = customer.role.value if hasattr(customer.role, "value") else str(customer.role)
+    if role_val == "hotel":
+        menu = store_manager_menu(lang)
+    else:
+        menu = customer_reorder_menu(lang) if last else customer_menu(lang)
 
     await callback.message.edit_text(
         f"✅ *Order Submitted!*\n\n"
@@ -353,19 +358,23 @@ async def submit_order(callback: CallbackQuery, state: FSMContext, session: Asyn
 
 
 @router.callback_query(F.data == "order_cancel")
-async def cancel_order(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+async def cancel_order(callback: CallbackQuery, state: FSMContext, session: AsyncSession, lang: str = "en"):
     await state.clear()
     user_repo = UserRepository(session)
     customer = await user_repo.get_by_telegram_id(callback.from_user.id)
     order_repo = OrderRepository(session)
     last = await order_repo.get_last_order(customer.id) if customer else None
-    menu = customer_reorder_menu() if last else customer_menu()
+    role_val = customer.role.value if customer and hasattr(customer.role, "value") else (str(customer.role) if customer else "")
+    if role_val == "hotel":
+        menu = store_manager_menu(lang)
+    else:
+        menu = customer_reorder_menu(lang) if last else customer_menu(lang)
     await callback.message.edit_text("❌ Order cancelled.")
     await callback.message.answer("Main menu:", reply_markup=menu)
     await callback.answer()
 
 @router.message(F.text.in_(["🔄 Repeat Last Order", "🔄 Reorder Last Order", "🔄 ያለፈውን ትዕዛዝ ድገም", "🔄 Ajaja Darbe Irra Deebi'i"]))
-async def repeat_last_order(message: Message, state: FSMContext, session: AsyncSession):
+async def repeat_last_order(message: Message, state: FSMContext, session: AsyncSession, lang: str = "en"):
     await state.clear()
     user_repo = UserRepository(session)
     customer = await user_repo.get_by_telegram_id(message.from_user.id)
@@ -390,7 +399,7 @@ async def repeat_last_order(message: Message, state: FSMContext, session: AsyncS
         from states.order import OrderState as OS
         await state.set_state(OS.reviewing_uploaded_order)
         from handlers.customer.upload_order import show_upload_review
-        await show_upload_review(message, state, session)
+        await show_upload_review(message, state, session, lang=lang)
         return
     prod_repo = ProductRepository(session)
     quantities: dict = {}
@@ -412,17 +421,21 @@ async def repeat_last_order(message: Message, state: FSMContext, session: AsyncS
         note=last.note,
     )
     await state.set_state(OrderState.reviewing_order)
-    await _send_review(message, state, session)
+    await _send_review(message, state, session, lang=lang)
 
 
 @router.message(F.text.in_(["🔙 Back", "🔙 ተመለስ", "🔙 Duubatti"]))
-async def back_to_menu(message: Message, state: FSMContext, session: AsyncSession):
+async def back_to_menu(message: Message, state: FSMContext, session: AsyncSession, lang: str = "en"):
     await state.clear()
     user_repo = UserRepository(session)
     customer = await user_repo.get_by_telegram_id(message.from_user.id)
     order_repo = OrderRepository(session)
     last = await order_repo.get_last_order(customer.id) if customer else None
-    menu = customer_reorder_menu() if last else customer_menu()
+    role_val = customer.role.value if customer and hasattr(customer.role, "value") else (str(customer.role) if customer else "")
+    if role_val == "hotel":
+        menu = store_manager_menu(lang)
+    else:
+        menu = customer_reorder_menu(lang) if last else customer_menu(lang)
     await message.answer("Main menu:", reply_markup=menu)
 
 

@@ -83,6 +83,50 @@ async def send_orders(message: Message, orders, lang: str = "en"):
 NEW_ORDERS_BTNS = ["📥 New Orders", "📥 አዳዲስ ትዕዛዞች", "📥 Ajajawwan Haaraa"]
 ACTIVE_ORDERS_BTNS = ["📦 Active Orders", "📦 የሚሰሩ ትዕዛዞች", "📦 Ajajawwan Hojii Irra Jiran"]
 ORDER_HISTORY_BTNS = ["📜 Order History", "📜 የትዕዛዝ ታሪክ", "📜 Seenaa Ajajaa"]
+HOTEL_EXPORT_BTNS = [
+    "📊 Export Hotel Orders (Excel)", "📊 Export Hotel Orders",
+    "📊 የሆቴል ትዕዛዞችን አውርድ (Excel)", "📊 የሆቴል ትዕዛዞችን አውርድ",
+    "📊 Ajajawwan Hoteelaa Buusi (Excel)", "📊 Ajajawwan Hoteelaa Buusi"
+]
+
+@router.message(F.text.in_(HOTEL_EXPORT_BTNS))
+async def export_hotel_orders(message: Message, lang: str = "en") -> None:
+    async with AsyncSessionLocal() as session:
+        repo = OrderRepository(session)
+        hotel_user = await repo.get_hotel_by_telegram(message.from_user.id) # type: ignore
+        if not hotel_user or not hotel_user.hotel_id:
+            await message.answer("❌ Hotel account not found.")
+            return
+
+        orders = await repo.get_hotel_all_orders(hotel_user.hotel_id)
+        if not orders:
+            await message.answer(t("no_orders_to_export", lang))
+            return
+
+        await message.answer(t("exporting_excel", lang))
+
+        from database.repositories.hotel_repository import HotelRepository
+        from utils.excel_export import generate_hotel_orders_excel
+        from aiogram.types import BufferedInputFile
+        from datetime import datetime, timezone
+
+        hotel = await HotelRepository(session).get_by_id(hotel_user.hotel_id)
+        hotel_name = hotel.name if hotel else "Hotel"
+
+        xlsx_bytes = generate_hotel_orders_excel(hotel, orders)
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M")
+        safe_name = "".join(c for c in hotel_name if c.isalnum() or c in ('_', '-'))
+        filename = f"oyirubot_hotel_{safe_name}_{ts}.xlsx"
+        doc = BufferedInputFile(xlsx_bytes, filename=filename)
+
+        caption = t(
+            "hotel_orders_export_caption",
+            lang,
+            hotel_name=hotel_name,
+            count=len(orders),
+            date=datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        )
+        await message.answer_document(doc, caption=caption, parse_mode="Markdown")
 
 @router.message(F.text.in_(NEW_ORDERS_BTNS))
 async def new_orders(message: Message, lang: str = "en"):

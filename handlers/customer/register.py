@@ -61,6 +61,10 @@ async def handle_phone(message: Message, state: FSMContext, session: AsyncSessio
             )
         return
 
+    is_hotel_admin = data.get("is_hotel_admin", False)
+    user_role = "hotel" if is_hotel_admin else "customer"
+    role_label = "Hotel Administrator" if is_hotel_admin else "Hotel Ordering Staff"
+
     auth = AuthService(user_repo)
     user = await auth.register_user(
         telegram_id=message.from_user.id, # type: ignore
@@ -68,6 +72,7 @@ async def handle_phone(message: Message, state: FSMContext, session: AsyncSessio
         username=message.from_user.username, # type: ignore
         phone=phone,
         hotel_id=hotel_id,
+        role=user_role,
         is_active=False,
     )
 
@@ -94,10 +99,11 @@ async def handle_phone(message: Message, state: FSMContext, session: AsyncSessio
 
     try:
         notification_text = (
-            "🔔 <b>New Customer Registration Request</b>\n\n"
+            f"🔔 <b>New {role_label} Registration Request</b>\n\n"
             f"👤 <b>Name</b>: {name_clean}\n"
             f"📱 <b>Phone</b>: {phone_clean}\n"
             f"🏨 <b>Hotel</b>: {hotel_clean}\n"
+            f"🏷 <b>Role</b>: {role_label}\n"
             f"🆔 <b>Telegram ID</b>: <code>{message.from_user.id}</code>\n" # type: ignore
             f"🏷 <b>Username</b>: @{uname}"
         )
@@ -111,6 +117,25 @@ async def handle_phone(message: Message, state: FSMContext, session: AsyncSessio
                 )
             except Exception as e:
                 logging.error(f"Failed to notify admin {admin_id} of registration: {e}")
+
+        # If a staff member registered under a hotel, notify that hotel's Hotel Admin
+        if not is_hotel_admin and user.hotel_id:
+            hotel_admin = await user_repo.get_hotel_admin(user.hotel_id)
+            if hotel_admin and hotel_admin.telegram_id:
+                try:
+                    await message.bot.send_message( # type: ignore
+                        chat_id=hotel_admin.telegram_id,
+                        text=(
+                            f"👥 <b>New Staff Registration for {hotel_clean}</b>\n\n"
+                            f"👤 <b>Name</b>: {name_clean}\n"
+                            f"📱 <b>Phone</b>: {phone_clean}\n"
+                            f"🆔 <b>Telegram ID</b>: <code>{message.from_user.id}</code>\n\n"
+                            "<i>The administrator has been notified to activate this staff member.</i>"
+                        ),
+                        parse_mode="HTML",
+                    )
+                except Exception as e:
+                    logging.error(f"Failed to notify hotel admin of new staff: {e}")
     except Exception as e:
         logging.error(f"Failed to send registration notifications: {e}")
 

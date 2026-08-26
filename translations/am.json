@@ -112,5 +112,18 @@
     "status_label": "📌 ሁኔታ",
     "driver_label": "🚚 አሽከርካሪ",
     "address_label": "📍 አድራሻ",
-    "phone_label": "📞 ስልክ ቁጥር"
+    "phone_label": "📞 ስልክ ቁጥር",
+    "btn_my_staff": "👥 የኔ ሰራተኞች",
+    "btn_invite_staff": "🔗 ሰራተኛ ጋብዝ",
+    "btn_staff_list": "📋 የሰራተኞች ዝርዝር",
+    "btn_export_hotel_excel": "📊 የሆቴል ትዕዛዞችን አውርድ (Excel)",
+    "no_unclaimed_hotels_msg": "🏨 ሁሉም የተመዘገቡ ሆቴሎች በሆቴል አስተዳዳሪዎቻቸው ተይዘዋል።\n\nለትእዛዝ አስገባ ሰራተኛነት ለመመዝገብ፣ እባክዎን የሆቴል አስተዳዳሪዎን የግብዣ ሊንክ (Invite Link) ይጠይቁ።",
+    "staff_invite_link_msg": "🔗 *የሆቴል ሰራተኞች የግብዣ ሊንክ*\n\nይህንን ሊንክ ትእዛዝ ለሚያስገቡ የሆቴልዎ ሰራተኞች ያጋሩ፡\n{link}\n\nይህንን ሊንክ ሲከፍቱ በቀጥታ በ*{hotel_name}* ስር ይመዘገባሉ።",
+    "hotel_staff_mgmt_title": "👥 *የሰራተኞች አስተዳደር — {hotel_name}*\n\nጠቅላላ የተመዘገቡ ሰራተኞች፡ {count}",
+    "hotel_orders_export_caption": "📊 *{hotel_name} — የትዕዛዞች መረጃ ኤክሴል*\n\n📦 ጠቅላላ ትዕዛዞች፡ *{count}*\n📅 የተዘጋጀበት፡ {date}",
+    "welcome_hotel_admin": "🏨 እንኳን በደህና መጡ፣ የሆቴል አስተዳዳሪ {name}!",
+    "select_hotel_admin_title": "🏨 *የሆቴል ምዝገባ*\n\nእንደ ሆቴል አስተዳዳሪ (Hotel Admin) ለመመዝገብ እባክዎን ሆቴልዎን ይምረጡ፡",
+    "staff_invite_registered": "✅ ወደ {hotel_name} እንኳን በደህና መጡ!\n\nምዝገባዎን ለማጠናቀቅ እባክዎን *ሙሉ ስምዎን* ያስገቡ፡",
+    "staff_deactivated": "⏸️ ሰራተኛው ታግዷል።",
+    "staff_activated": "▶️ ሰራተኛው ነቅቷል።"
 }

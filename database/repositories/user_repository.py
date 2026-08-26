@@ -86,3 +86,39 @@ class UserRepository(BaseRepository):
         async for doc in cursor:
             users.append(User.from_dict(doc))
         return users
+
+    async def get_claimed_hotel_ids(self) -> List[int]:
+        cursor = self.db["users"].find({
+            "role": UserRole.HOTEL.value,
+            "hotel_id": {"$ne": None}
+        })
+        claimed_ids = []
+        async for doc in cursor:
+            hid = doc.get("hotel_id")
+            if hid is not None and hid not in claimed_ids:
+                claimed_ids.append(hid)
+        return claimed_ids
+
+    async def get_hotel_admin(self, hotel_id: int) -> Optional[User]:
+        doc = await self.db["users"].find_one({
+            "role": UserRole.HOTEL.value,
+            "hotel_id": hotel_id
+        })
+        if not doc:
+            return None
+        user = User.from_dict(doc)
+        await self._populate_hotel(user)
+        return user
+
+    async def get_hotel_staff(self, hotel_id: int) -> List[User]:
+        cursor = self.db["users"].find({
+            "role": UserRole.CUSTOMER.value,
+            "hotel_id": hotel_id
+        }).sort("full_name", 1)
+        staff = []
+        async for doc in cursor:
+            user = User.from_dict(doc)
+            await self._populate_hotel(user)
+            staff.append(user)
+        return staff
+

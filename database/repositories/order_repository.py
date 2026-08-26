@@ -149,6 +149,15 @@ class OrderRepository(BaseRepository):
                 orders.append(order)
         return orders
 
+    async def get_hotel_all_orders(self, hotel_id: int) -> List[Order]:
+        cursor = self.db["orders"].find({"hotel_id": hotel_id}).sort("created_at", -1)
+        orders = []
+        async for doc in cursor:
+            order = await self._populate_order(Order.from_dict(doc))
+            if order:
+                orders.append(order)
+        return orders
+
     async def get_hotel_by_telegram(self, telegram_id: int) -> Optional[User]:
         doc = await self.db["users"].find_one({"telegram_id": telegram_id})
         if not doc:

@@ -112,5 +112,18 @@
     "status_label": "📌 Haala",
     "driver_label": "🚚 Geessaa",
     "address_label": "📍 Teessoo",
-    "phone_label": "📞 Bilbila"
+    "phone_label": "📞 Bilbila",
+    "btn_my_staff": "👥 Hojjettoota Koo",
+    "btn_invite_staff": "🔗 Hojjetaa Afeeri",
+    "btn_staff_list": "📋 Tarree Hojjettootaa",
+    "btn_export_hotel_excel": "📊 Ajajawwan Hoteelaa Buusi (Excel)",
+    "no_unclaimed_hotels_msg": "🏨 Hoteelonni galmaa'an hundi duraan bulchitoota hoteelaatiin qabamaniiru.\n\nAkka hojjetaa ajaja galchuutti galmaa'uuf, maaloo bulchaa hoteela keessanii irraa liankii afeerraa gaafadhaa.",
+    "staff_invite_link_msg": "🔗 *Liankii Afeerraa Hojjettoota Hoteelaa*\n\nLiankii kana hojjettoota hoteela keessanii kanneen ajaja galchaniif qoodaa:\n{link}\n\nLiankii kana yommuu bannan kallattiin *{hotel_name}* jalatti galmaa'u.",
+    "hotel_staff_mgmt_title": "👥 *Bulchiinsa Hojjettootaa — {hotel_name}*\n\nIda'ama Hojjettoota Galmaa'anii: {count}",
+    "hotel_orders_export_caption": "📊 *{hotel_name} — Gabaasa Ajajawwan Hoteelaa*\n\n📦 Ida'ama Ajajawwan: *{count}*\n📅 Kan Qophaa'e: {date}",
+    "welcome_hotel_admin": "🏨 Baga nagaan dhuftan, Bulchaa Hoteelaa {name}!",
+    "select_hotel_admin_title": "🏨 *Galmee Hoteelaa*\n\nAkka Bulchaa Hoteelaatti (Hotel Admin) galmaa'uuf maaloo hoteela keessan filadhaa:",
+    "staff_invite_registered": "✅ Baga gara {hotel_name} nagaan dhuftan!\n\nGalmee keessan xumuruuf maaloo *maqaa guutuu* keessan galchaa:",
+    "staff_deactivated": "⏸️ Hojjetaan dhorkameera.",
+    "staff_activated": "▶️ Hojjetaan heyyamameera."
 }

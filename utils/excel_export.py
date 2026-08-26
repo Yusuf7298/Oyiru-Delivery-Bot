@@ -400,3 +400,81 @@ def generate_driver_excel(driver, orders: list) -> bytes:
     buf.seek(0)
     return buf.read()
 
+
+def generate_hotel_orders_excel(hotel, orders: list) -> bytes:
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Hotel Orders Report"
+    ws.freeze_panes = "A2"
+
+    hotel_name = hotel.name if hasattr(hotel, "name") else (str(hotel) if hotel else "Hotel")
+
+    _header_row(ws, [
+        "Order Number",
+        "Hotel Name",
+        "Ordered By (Staff)",
+        "Staff Phone",
+        "Products Breakdown",
+        "Quantity Summary",
+        "Order Status",
+        "Order Time",
+        "Delivery Time",
+        "Assigned Driver",
+        "Note"
+    ])
+
+    for order in orders:
+        c_name = order.customer.full_name if getattr(order, "customer", None) else "—"
+        c_phone = order.customer.phone if getattr(order, "customer", None) and order.customer.phone else "—"
+        status_val = order.status.value if hasattr(order.status, "value") else str(order.status)
+        order_dt = _fmt_dt(order.created_at)
+        deliv_dt = _fmt_dt(order.delivered_at)
+        driver_str = order.driver_name or (order.delivery_partner.full_name if getattr(order, "delivery_partner", None) else "—")
+        note_str = order.note or "—"
+
+        prod_lines = []
+        total_kg = 0.0
+        if order.items:
+            for item in order.items:
+                if item.product:
+                    unit_str = getattr(item.product, "unit", "KG") or "KG"
+                    prod_lines.append(f"{item.product.name} ({item.quantity} {unit_str})")
+                    try:
+                        total_kg += float(item.quantity)
+                    except (ValueError, TypeError):
+                        pass
+            prod_summary = "; ".join(prod_lines)
+            qty_summary = f"{total_kg:.1f} KG" if total_kg > 0 else f"{len(order.items)} items"
+        else:
+            fname = getattr(order, "original_filename", None) or "Uploaded File"
+            ftype = (getattr(order, "file_type", None) or "file").upper()
+            prod_summary = f"[{ftype}] {fname}"
+            qty_summary = "1 file"
+
+        ws.append([
+            order.order_number,
+            hotel_name,
+            c_name,
+            c_phone,
+            prod_summary,
+            qty_summary,
+            status_val,
+            order_dt,
+            deliv_dt,
+            driver_str,
+            note_str
+        ])
+        r = ws.max_row
+        for cell in ws[r]:
+            cell.border = THIN_BORDER
+        if r % 2 == 0:
+            for cell in ws[r]:
+                cell.fill = _ALT_FILL
+
+    _auto_width(ws)
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf.read()
+
+

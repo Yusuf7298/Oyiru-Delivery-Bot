@@ -6,8 +6,8 @@ Welcome to **Oyirubot**, the automated order management and delivery dispatch sy
 
 ## 📑 Table of Contents
 1. [🌐 General Getting Started & Language Selection](#1-getting-started--language-selection)
-2. [👤 Customer Guide (Hotel Ordering Staff)](#2-customer-guide)
-3. [🏨 Store Manager Guide (Hotel Dispatchers & Kitchen)](#3-store-manager-guide)
+2. [🏨 Hotel Administrator Guide](#2-hotel-administrator-guide)
+3. [👤 Hotel Ordering Staff (Customer) Guide](#3-hotel-ordering-staff-customer-guide)
 4. [🚚 Delivery Partner Guide (Drivers & Couriers)](#4-delivery-partner-guide)
 5. [👑 Admin & Super Admin Guide (Operations & Management)](#5-admin--super-admin-guide)
 6. [📢 Telegram Channel & Notification Matrix](#6-channel--group-notifications)
@@ -30,184 +30,135 @@ You can switch your language at any time by tapping **🌐 Language** from the m
 
 ---
 
-## 2. Customer Guide
+## 2. Hotel Administrator Guide
 
-### 2.1 Registration
-1. Send /start to the bot.
-2. Select your preferred language (**English / አማርኛ / Afaan Oromoo**).
-3. Select your assigned **Hotel / Restaurant branch** from the list.
-4. Tap **📱 Share Contact** to verify your phone number.
-5. Enter your **Full Name**.
-6. Once registered, your account is activated (or queued for admin confirmation).
+Hotel Administrators oversee branch ordering, manage authorized ordering staff, track fulfillment, and export branch data.
 
----
-
-### 2.2 Placing an Order
-
-Customers can place orders using either **Catalog Browsing** or **Direct File/Photo Upload**:
-
-#### Option A: Catalog Browsing (🛒 Place Order)
-1. Tap **🛒 Place Order** from the main menu.
-2. Choose **📂 Browse Categories**.
-3. Select the category (e.g., *Vegetables*, *Fruits*, *Meat*, *Dairy*).
-4. Tap the products you want to order.
-5. Enter the quantity when prompted. Examples are shown for clarity:
-   - For items in KG: 50, 12.5, 500kg, or 100 kilo
-   - For items in PCS / Box: 10, 5 boxes, 20 pcs
-6. Add optional order notes (e.g., *"Deliver before 9:00 AM"* or *"Ripe tomatoes preferred"*).
-7. Review your order summary and tap **✅ Submit Order**.
-
-#### Option B: Photo / File Upload (📁 Upload Order)
-1. Tap **🛒 Place Order** → **📁 Upload Order (Photo/Document)**.
-2. Send a photo of your handwritten order list, invoice, or upload a document (**PDF, Excel .xlsx, Word .docx, or Text file**).
-3. Enter an optional order note or tap **⏭️ Skip Note**.
-4. Review the preview and tap **✅ Submit Order**.
+### 2.1 Initial Hotel Registration (Claiming a Hotel)
+1. When starting the bot for the first time, select your preferred language.
+2. The bot displays the list of **unclaimed hotels**.
+3. Select your hotel to register as its **Hotel Administrator**.
+4. Enter your **Full Name** and **Phone Number**.
+5. Once submitted, your registration is reviewed and activated by the Super Administrator.
+6. **Security Note**: Once you register for your hotel, it is claimed and permanently removed from the public registration list so unauthorized users cannot select it.
 
 ---
 
-### 2.3 Tracking Your Orders (📦 My Orders)
-1. Tap **📦 My Orders** to view your active and past orders.
-2. Tap on any order (e.g. 🆔 OYR-20260824-0001) to see:
-   - Live Order Status:
-     - ⏳ Submitted → Order received
-     - 👨‍🍳 Preparing → Kitchen/Store is packing your items
-     - 📦 Packed → Ready for driver pickup
-     - 🚗 Out for Delivery → Driver is on the way (driver name & phone number provided)
-     - ✅ Delivered → Successfully received
-   - Full product list and attached invoices/photos.
-3. **Repeat Order**: Tap **🔄 Repeat Order** on past orders to re-order the same items in one tap.
+### 2.2 Managing Ordering Staff (👥 My Staff)
+Hotel Admins have exclusive control over who can place orders for their hotel:
+1. Tap **👥 My Staff** from your main menu.
+2. **🔗 Invite Staff**: Generates a secure Telegram Invite Link (e.g. https://t.me/Oyirubot?start=join_<hotel_id>).
+   - Share this link directly with your kitchen, chef, or purchasing staff.
+   - When they tap the link, they are automatically registered under your hotel without needing to choose from any hotel list!
+3. **📋 Staff List**: View all registered staff members under your hotel with their status, phone number, and total orders placed.
+4. **⏸️ Deactivate / ▶️ Activate Staff**: Tap any staff member to disable or enable their ordering access at any time.
 
 ---
 
-### 2.4 Rating & Delivery Feedback
-When an order is delivered:
-1. You will receive a delivery confirmation message.
-2. Tap a rating from **⭐ 1** to **⭐ 5**.
-3. Provide optional feedback to ensure top-quality service.
+### 2.3 Placing Orders as Hotel Admin
+Hotel Admins can place orders directly for their hotel:
+- **🛒 Place Order**: Browse categories (*Vegetables, Fruits, Meat, Dairy*), select items, enter quantities (e.g. 50 kg, 10 boxes), and submit.
+- **📄 Upload Product List**: Send a photo of a handwritten list or upload invoices/documents (**PDF, Excel .xlsx, Word .docx, Text**).
 
 ---
 
-### 2.5 Exporting Orders to Excel (📊 Export Orders)
-1. Tap **📊 Export Orders (Excel)** from your menu.
-2. The bot generates and sends an official formatted .xlsx spreadsheet of all your order history.
+### 2.4 Reviewing & Approving Orders
+1. **📥 New Orders**: View pending incoming orders placed by your staff.
+2. **✅ Approve Order**: Opens an interactive list of **registered delivery drivers** (🚗 Driver Name). Tap a driver to assign them immediately without typing names manually.
+3. Progress order fulfillment:
+   - 👨‍🍳 Start Preparing → Notifies customer preparation is underway.
+   - 📦 Mark Packed → Confirms items are packed.
+   - 🚚 Out for Delivery → Dispatches driver.
+   - ✅ Mark Delivered → Confirms handoff.
 
 ---
 
-## 3. Store Manager Guide
-
-Store Managers oversee hotel order fulfillment, preparation, and driver dispatching.
-
-### 3.1 Main Menu Options
-- **📥 New Orders**: View incoming pending orders.
-- **📦 Active Orders**: View orders currently in progress.
-- **📜 Order History**: Completed & delivered orders.
-
----
-
-### 3.2 Reviewing & Approving Orders
-1. Tap **📥 New Orders**.
-2. The bot presents the order card, including:
-   - Order Number & Customer Name
-   - Product list with quantities OR the attached photo/document invoice.
-3. Tap **✅ Approve Order**.
-4. The bot shows an interactive list of **registered delivery drivers** (🚗 Driver Name).
-5. Tap the driver you wish to assign:
-   - The driver is instantly notified with the order details and attached media.
-   - The customer is notified that the order has been approved.
+### 2.5 Exporting Hotel Records (📊 Export Hotel Orders (Excel))
+1. Tap **📊 Export Hotel Orders (Excel)** from your menu.
+2. The bot generates and sends an official .xlsx spreadsheet containing:
+   - Order numbers & Timestamps
+   - Ordering Staff Name & Phone number
+   - Full products list with KG/units
+   - Status, Assigned Driver, and Notes.
 
 ---
 
-### 3.3 Progressing Order Stages
-On the active order card, advance the order as it is prepared:
-- 👨‍🍳 Start Preparing → Notifies customer that preparation has started.
-- 📦 Mark Packed → Confirms items are packed and ready for pickup.
-- 🚛 Send Out for Delivery → Dispatches driver to destination.
-- ✅ Mark Delivered → Confirms final handoff.
+## 3. Hotel Ordering Staff (Customer) Guide
+
+Hotel Ordering Staff (Chefs, Purchasing officers, Storekeepers) place daily fresh supply orders.
+
+### 3.1 Registration via Invite Link
+1. Ask your **Hotel Admin** for your hotel's invite link.
+2. Open the invite link in Telegram (e.g., https://t.me/Oyirubot?start=join_...).
+3. Select your language.
+4. Enter your **Full Name** and **Phone Number**.
+5. You are registered directly under your hotel.
 
 ---
 
-## 4. Delivery Partner Guide
+### 3.2 Placing Orders
+- **Option A: Catalog Order (🛒 Place Order)**:
+  1. Tap **🛒 Place Order** → **🧺 Category Order**.
+  2. Select category & product.
+  3. Enter quantity when prompted (e.g. 100kg, 12.5, 5 boxes).
+  4. Add optional delivery notes.
+  5. Tap **✅ Submit Order**.
+- **Option B: Upload Order (📄 Upload Product List)**:
+  1. Tap **🛒 Place Order** → **📄 Upload Product List**.
+  2. Send a photo or document file.
+  3. Review preview and tap **✅ Submit Order**.
 
-Delivery Partners (Drivers) receive assignments, navigate deliveries, and update handoffs.
+---
+
+### 3.3 Tracking & History (📦 My Orders)
+1. Tap **📦 My Orders** to track status (Submitted → Preparing → Packed → Out for Delivery → Delivered).
+2. **🔄 Reorder Last Order**: Re-order your previous grocery list in one click.
+3. **📊 Export Orders (Excel)**: Download personal order history spreadsheet.
+4. **Delivery Rating**: Rate your delivery experience (⭐ 1 to ⭐ 5) upon receiving goods.
+
+---
+
+## 4. Delivery Partner Guide (Drivers)
 
 ### 4.1 Driver Menu
 - **📦 Available Deliveries**: Orders assigned to you awaiting acceptance.
-- **🚚 My Deliveries**: Orders currently active and out for delivery.
-- **📜 Delivery History**: Completed delivery log.
+- **🚚 My Deliveries**: Orders currently active.
+- **📜 Delivery History**: Past delivery records.
 - **📊 Export Deliveries (Excel)**: Export personal delivery logs.
 
----
-
-### 4.2 Handling a Delivery
-1. **Assignment Notification**: When an order is assigned to you, you receive a direct notification with:
-   - Order Number & Hotel Destination Address
-   - Attached photo, invoice, or item breakdown
-2. Tap **✅ Accept Delivery** to accept the assignment.
-3. Once the package is picked up, tap **🚛 Start Delivery / Out for Delivery**.
-4. When arrived at the hotel and handed over to the receiving staff, tap **🏁 Mark Delivered**.
-5. The customer and management are instantly notified of the completed delivery.
+### 4.2 Handling Deliveries
+1. Receive assignment notification with hotel destination address and attached order photo/list.
+2. Tap **✅ Accept Delivery**.
+3. Tap **🚛 Out for Delivery** when leaving the warehouse.
+4. Tap **✅ Complete Delivery** upon arrival and handoff at the hotel.
 
 ---
 
 ## 5. Admin & Super Admin Guide
 
-Admins have complete control over catalog, hotels, users, orders, and system analytics.
+Super Admins have complete system control across all hotels, catalogs, orders, and users.
 
 ### 5.1 Admin Menu
-- **🏨 Hotels**: Manage registered hotel branches.
-- **🧺 Categories**: Manage product categories.
-- **📦 Products**: Add, edit, activate/deactivate, or delete catalog items.
-- **👥 Users**: Manage user accounts and switch user roles.
-- **📥 New Orders**: View all pending orders and assign drivers.
-- **📊 Statistics**: View real-time revenue, order counts, and delivery metrics.
-- **📊 Export Excel**: Download system-wide raw data reports.
-- **📢 Broadcast**: Send announcements to all bot users.
+- **🏨 Hotels**: View all hotels, view assigned Hotel Admin and staff counts, add hotels, edit details.
+- **🧺 Categories & 📦 Products**: Manage catalog items, units, and active status.
+- **👥 Users**: Manage all users, change roles, assign/reassign Hotel Admins.
+- **📥 New Orders**: View all system orders and assign delivery drivers.
+- **📊 Statistics & 📊 Export Excel**: Real-time analytics and system-wide raw data reports.
+- **📢 Broadcast**: Send instant announcements to all bot users.
 
 ---
 
-### 5.2 Approving New Users
-When a new staff member registers:
-1. Super Admins receive an approval prompt:
-   - Name, Phone, Role, and Hotel.
-2. Tap **✅ Approve** to activate the user or **❌ Reject** to deny access.
+## 6. Telegram Channel & Notification Matrix
 
----
-
-### 5.3 Managing Products & Categories
-1. Tap **🧺 Categories** → **➕ Add Category** to create a category.
-2. Tap **📦 Products** → select a category → **➕ Add Product**:
-   - Enter product name (e.g. *Red Onion*).
-   - Enter measurement unit (e.g. *KG*, *Box*, *Liter*, *Pcs*).
-3. To edit or deactivate an item:
-   - Tap **📦 Products** → Select Product → Tap **✏️ Edit Name**, **✏️ Edit Unit**, or **🔴 Deactivate**.
-
----
-
-### 5.4 Assigning Drivers as Admin
-1. Tap **📥 New Orders**.
-2. Tap **🚚 Assign Driver** on any pending order.
-3. Select an active driver from the interactive driver list.
-
----
-
-### 5.5 Sending Announcements (📢 Broadcast)
-1. Tap **📢 Broadcast**.
-2. Type your announcement message.
-3. The message is broadcasted to all active bot users.
-
----
-
-## 6. Channel & Group Notifications
-
-Oyirubot automatically synchronizes events with designated Telegram channels & groups with attached media:
-
-| Event | Notification Destination | Contents |
+| Event | Destination | Contents |
 | :--- | :--- | :--- |
-| **New Order Submitted** | Orders Channel, Store Managers, Inventory Group | Order details + Attached invoice/photo |
-| **Driver Assigned** | Driver Chat, Customer Chat | Delivery address + Items list |
+| **New Hotel Admin Registration** | Super Admin Chat | Hotel name, Admin details, Approval buttons |
+| **New Staff Registration** | Super Admin & Hotel Admin Chat | Staff name, phone, Hotel name |
+| **New Order Submitted** | Orders Channel, Store Managers, Inventory Group | Order card + Attached photo/document invoice |
+| **Driver Assigned** | Driver Chat, Customer Chat | Destination address + Items list |
 | **Order Delivered** | Orders Channel, Sales Managers | Delivery confirmation + Timestamp |
 | **Customer Feedback** | Quality Control & Operations Group | Star rating (1-5) + Customer remarks |
-| **Product Return** | Quality Control & Admin | Return reason + Uploaded photo proof |
+| **Product Return** | Quality Control & Super Admin | Return reason + Uploaded photo proof |
 
 ---
 

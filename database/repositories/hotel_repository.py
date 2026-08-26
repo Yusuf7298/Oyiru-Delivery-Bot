@@ -20,6 +20,16 @@ class HotelRepository(BaseRepository):
             hotels.append(Hotel.from_dict(doc))
         return hotels
 
+    async def get_unclaimed_active_hotels(self, claimed_ids: list) -> List[Hotel]:
+        query: dict = {"is_active": True}
+        if claimed_ids:
+            query["_id"] = {"$nin": claimed_ids}
+        cursor = self.db["hotels"].find(query).sort("name", 1)
+        hotels = []
+        async for doc in cursor:
+            hotels.append(Hotel.from_dict(doc))
+        return hotels
+
     async def create(self, hotel: Hotel) -> Hotel:
         return await self.add(hotel)
 

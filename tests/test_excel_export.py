@@ -2,7 +2,12 @@ import unittest
 from datetime import datetime
 from database.models.order import Order, OrderStatus
 from database.models.hotel import Hotel
-from utils.excel_export import generate_excel, generate_customer_excel, generate_driver_excel
+from utils.excel_export import (
+    generate_excel,
+    generate_customer_excel,
+    generate_driver_excel,
+    generate_hotel_orders_excel,
+)
 from database.models.user import User
 
 class TestExcelExport(unittest.TestCase):
@@ -58,6 +63,21 @@ class TestExcelExport(unittest.TestCase):
         self.assertIsInstance(result, bytes)
         self.assertTrue(len(result) > 100)
 
+    def test_generate_hotel_orders_excel(self):
+        hotel = Hotel(id=1, name='Hilton Hotel')
+        customer = User(id=3, full_name="John Chef", phone="+251911000000")
+        order = Order(
+            id=30,
+            order_number='ORD-303',
+            hotel=hotel,
+            customer=customer,
+            status=OrderStatus.APPROVED,
+            items=[]
+        )
+        result = generate_hotel_orders_excel(hotel, [order])
+        self.assertIsInstance(result, bytes)
+        self.assertTrue(len(result) > 100)
+
+
 if __name__ == '__main__':
     unittest.main()
-

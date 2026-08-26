@@ -27,10 +27,10 @@ async def hotel_selected(
         await callback.answer()
         return
 
-    # New user — store hotel and advance to name step
-    await state.update_data(hotel_id=hotel_id)
+    # New user claiming unclaimed hotel — store hotel and mark as Hotel Admin
+    await state.update_data(hotel_id=hotel_id, is_hotel_admin=True, is_staff_invite=False)
     await callback.message.edit_text( # type: ignore
-        "✅ Hotel selected.\n\nPlease enter your *full name*:",
+        "✅ Hotel selected.\n\nPlease enter your *full name* to complete your Hotel Administrator registration:",
         parse_mode="Markdown",
     )
     await state.set_state(RegistrationState.full_name)

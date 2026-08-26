@@ -38,15 +38,44 @@ async def start(message: Message, state: FSMContext, session: AsyncSession, lang
         user_lang = getattr(user, "language", lang) or lang
         await _show_user_menu(message, user, session, lang=user_lang)
         return
-    hotel_service = HotelService(session)
-    hotels = await hotel_service.get_hotels()
-    if not hotels:
-        await message.answer(t("no_hotels", lang))
+
+    # Check for deep-link payload e.g. "/start join_3" or "/start hotel_3"
+    args = (message.text or "").strip().split()
+    payload = args[1] if len(args) > 1 else None
+
+    from database.repositories.hotel_repository import HotelRepository
+    from states.registration import RegistrationState
+    hotel_repo = HotelRepository(session)
+
+    if payload and (payload.startswith("join_") or payload.startswith("hotel_")):
+        raw_id = payload.replace("join_", "").replace("hotel_", "")
+        if raw_id.isdigit():
+            hotel_id = int(raw_id)
+            hotel = await hotel_repo.get_by_id(hotel_id)
+            if hotel and hotel.is_active:
+                await state.update_data(hotel_id=hotel_id, is_staff_invite=True, is_hotel_admin=False)
+                await state.set_state(RegistrationState.full_name)
+                await message.answer(
+                    t("staff_invite_registered", lang, hotel_name=hotel.name),
+                    parse_mode="Markdown"
+                )
+                return
+
+    # Normal registration: Show only unclaimed active hotels for Hotel Admin registration
+    claimed_ids = await user_repo.get_claimed_hotel_ids()
+    unclaimed_hotels = await hotel_repo.get_unclaimed_active_hotels(claimed_ids)
+
+    if not unclaimed_hotels:
+        await message.answer(
+            t("no_unclaimed_hotels_msg", lang),
+            parse_mode="Markdown"
+        )
         return
 
     await message.answer(
-        t("select_hotel", lang),
-        reply_markup=hotels_keyboard(hotels),
+        t("select_hotel_admin_title", lang),
+        reply_markup=hotels_keyboard(unclaimed_hotels),
+        parse_mode="Markdown"
     )
 
 
@@ -71,9 +100,11 @@ async def _show_user_menu(message: Message, user, session: AsyncSession, lang: s
             )
 
     elif user.role == UserRole.HOTEL:
+        hotel_name = user.hotel.name if getattr(user, "hotel", None) else "Hotel"
         await message.answer(
-            t("welcome_user", user_lang, name=user.full_name),
+            t("welcome_hotel_admin", user_lang, name=user.full_name, hotel_name=hotel_name),
             reply_markup=store_manager_menu(user_lang),
+            parse_mode="Markdown"
         )
 
     elif user.role == UserRole.DELIVERY:

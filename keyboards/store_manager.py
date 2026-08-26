@@ -6,11 +6,42 @@ from utils.i18n import t
 def store_manager_menu(lang: str = "en") -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text=t("btn_store_new_orders", lang)), KeyboardButton(text=t("btn_store_active_orders", lang))],
-            [KeyboardButton(text=t("btn_store_order_history", lang)), KeyboardButton(text=t("btn_language", lang))],
+            [KeyboardButton(text=t("btn_place_order", lang)), KeyboardButton(text=t("btn_store_new_orders", lang))],
+            [KeyboardButton(text=t("btn_store_active_orders", lang)), KeyboardButton(text=t("btn_store_order_history", lang))],
+            [KeyboardButton(text=t("btn_my_staff", lang)), KeyboardButton(text=t("btn_export_hotel_excel", lang))],
+            [KeyboardButton(text=t("btn_language", lang))],
         ],
         resize_keyboard=True,
     )
+
+def staff_management_keyboard(hotel_id: int, lang: str = "en") -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text=t("btn_invite_staff", lang), callback_data=f"hotel_invite_staff:{hotel_id}")
+    builder.button(text=t("btn_staff_list", lang), callback_data=f"hotel_staff_list:{hotel_id}")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def staff_list_keyboard(staff_list: list, hotel_id: int, lang: str = "en") -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for s in staff_list:
+        status_icon = "✅" if s.is_active else "⏸️"
+        builder.button(
+            text=f"{status_icon} {s.full_name} ({s.phone or '—'})",
+            callback_data=f"hotel_staff_detail:{s.id}:{hotel_id}"
+        )
+    builder.button(text=t("btn_invite_staff", lang), callback_data=f"hotel_invite_staff:{hotel_id}")
+    builder.button(text=t("btn_back", lang), callback_data=f"hotel_staff_back:{hotel_id}")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def staff_detail_keyboard(staff_user, hotel_id: int, lang: str = "en") -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    toggle_text = t("btn_deactivate", lang) if staff_user.is_active else t("btn_activate", lang)
+    toggle_cb = f"hotel_staff_toggle:{staff_user.id}:{hotel_id}"
+    builder.button(text=toggle_text, callback_data=toggle_cb)
+    builder.button(text=t("btn_back", lang), callback_data=f"hotel_staff_list:{hotel_id}")
+    builder.adjust(1)
+    return builder.as_markup()
 
 def order_action_keyboard(order_id: int, status: OrderStatus, has_file: bool = False) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()

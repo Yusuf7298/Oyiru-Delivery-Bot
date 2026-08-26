@@ -55,17 +55,25 @@ async def hotels_back(callback: CallbackQuery, session: AsyncSession, lang: str 
 @router.callback_query(F.data.startswith("admin_hotel:"))
 async def hotel_detail(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
     hotel_id = int(callback.data.split(":")[1]) # type: ignore
-    repo = HotelRepository(session)
-    hotel = await repo.get_by_id(hotel_id)
+    hotel = await HotelRepository(session).get_by_id(hotel_id)
     if not hotel:
         await callback.answer("Hotel not found.", show_alert=True)
         return
+
+    user_repo = UserRepository(session)
+    hotel_admin = await user_repo.get_hotel_admin(hotel_id)
+    staff = await user_repo.get_hotel_staff(hotel_id)
+
     status = "✅ Active" if hotel.is_active else "❌ Inactive"
+    admin_str = f"👤 *{hotel_admin.full_name}* ({hotel_admin.phone or 'No phone'})" if hotel_admin else "🔓 *Unassigned* (Available for Registration)"
+
     text = (
         f"🏨 *{hotel.name}*\n\n"
         f"📍 Address: {hotel.address or '—'}\n"
         f"📞 Phone: {hotel.phone or '—'}\n"
-        f"Status: {status}"
+        f"👑 Hotel Admin: {admin_str}\n"
+        f"👥 Staff Count: {len(staff)}\n"
+        f"📌 Status: {status}"
     )
     await callback.message.edit_text( # type: ignore
         text, reply_markup=hotel_detail_keyboard(hotel, lang=lang), parse_mode="Markdown"

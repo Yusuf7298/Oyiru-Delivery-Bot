@@ -14,12 +14,13 @@ from services.notification_service import notify_new_order as notify_admin_new_o
 from states.order import OrderState
 from keyboards.customer.order import upload_review_keyboard, skip_note_keyboard
 from keyboards.customers import customer_menu, customer_reorder_menu
+from keyboards.store_manager import store_manager_menu
 from filters.role_filter import RoleFilter
 from utils.i18n import t
 
 router = Router()
-router.message.filter(RoleFilter(["customer"]))
-router.callback_query.filter(RoleFilter(["customer"]))
+router.message.filter(RoleFilter(["customer", "hotel"]))
+router.callback_query.filter(RoleFilter(["customer", "hotel"]))
 
 UPLOAD_DIR = os.path.join(os.getcwd(), "uploads")
 ALLOWED_EXTENSIONS = {".pdf", ".xls", ".xlsx", ".doc", ".docx", ".txt"}
@@ -152,7 +153,11 @@ async def cancel_upload(message: Message, state: FSMContext, session: AsyncSessi
     data = await state.get_data()
     _cleanup_file(data.get("file_path"))
     await state.clear()
-    await message.answer("❌ Upload cancelled.", reply_markup=customer_menu(lang))
+    user_repo = UserRepository(session)
+    user = await user_repo.get_by_telegram_id(message.from_user.id if message.from_user else message.chat.id)
+    role_val = user.role.value if user and hasattr(user.role, "value") else (str(user.role) if user else "")
+    menu = store_manager_menu(lang) if role_val == "hotel" else customer_menu(lang)
+    await message.answer("❌ Upload cancelled.", reply_markup=menu)
 
 
 @router.message(OrderState.waiting_for_document)
@@ -284,7 +289,11 @@ async def submit_upload_order(callback: CallbackQuery, state: FSMContext, sessio
         logger.error(f"Notification failed for {order.order_number}: {exc}")
 
     last = await OrderRepository(session).get_last_order(customer.id)
-    menu = customer_reorder_menu(lang) if last else customer_menu(lang)
+    role_val = customer.role.value if hasattr(customer.role, "value") else str(customer.role)
+    if role_val == "hotel":
+        menu = store_manager_menu(lang)
+    else:
+        menu = customer_reorder_menu(lang) if last else customer_menu(lang)
     file_label = FILE_TYPE_LABELS.get(order.file_type or "", "📎 File")
 
     from utils.helpers import safe_edit_text_or_caption

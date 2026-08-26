@@ -13,6 +13,7 @@ class AuthService:
         username,
         phone,
         hotel_id,
+        role="customer",
         is_active=False,
     ):
         user = User(
@@ -21,7 +22,7 @@ class AuthService:
             username=username,
             phone=phone,
             hotel_id=hotel_id,
-            role="customer",
+            role=role,
             is_active=is_active,
         )
         return await self.user_repository.create_user(
