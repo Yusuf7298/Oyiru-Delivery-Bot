@@ -86,11 +86,19 @@ async def global_error_handler(event):
     logger.warning(f"Handled dispatcher error: {event.exception}")
     return True
 
+import sys
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 async def main():
-    print("Starting Oyirubot in Long-Polling Mode...")
+    logger.info("Starting Oyirubot in Long-Polling Mode...")
     # Explicitly remove any active webhook so polling works seamlessly without port/SSL issues
     await bot.delete_webhook(drop_pending_updates=True)
-    print("✅ Webhooks cleared. Oyirubot Long-Polling Started Successfully!")
+    logger.info("Webhooks cleared. Oyirubot Long-Polling Started Successfully!")
+    print("[OK] Webhooks cleared. Oyirubot Long-Polling Started Successfully!")
     await dp.start_polling(bot, drop_pending_updates=True)
 
 
