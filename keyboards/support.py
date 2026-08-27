@@ -1,4 +1,4 @@
-﻿from aiogram.types import InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from utils.i18n import t
 
@@ -6,10 +6,6 @@ def support_keyboard(support: dict, lang: str = "en") -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     if support.get("telegram_link"):
         builder.button(text=t("btn_chat_telegram", lang), url=support["telegram_link"])
-    if support.get("phone_clean"):
-        builder.button(text=t("btn_call_support", lang), url=f"tel:{support['phone_clean']}")
-    if support.get("email"):
-        builder.button(text=t("btn_email_support", lang), url=f"mailto:{support['email']}")
     builder.adjust(1)
     return builder.as_markup()
 

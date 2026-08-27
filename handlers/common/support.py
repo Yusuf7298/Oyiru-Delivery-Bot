@@ -1,4 +1,4 @@
-﻿from aiogram import Router, F
+from aiogram import Router, F
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.repositories.settings_repository import SettingsRepository
@@ -16,8 +16,8 @@ async def show_contact_support(message: Message, session: AsyncSession, lang: st
 
     text = (
         f"{t('support_title', lang)}\n\n"
-        f"{t('support_phone_label', lang)}: {support['phone']}\n"
-        f"{t('support_email_label', lang)}: {support['email']}\n"
+        f"{t('support_phone_label', lang)}: `{support['phone']}`\n"
+        f"{t('support_email_label', lang)}: `{support['email']}`\n"
         f"{t('support_telegram_label', lang)}: [@{support['telegram_username']}]({support['telegram_link']})"
     )
 
