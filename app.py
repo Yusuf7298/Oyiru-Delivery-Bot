@@ -7,6 +7,7 @@ from config import BOT_TOKEN  # type: ignore
 from handlers.common.cancel import router as cancel_router
 from handlers.start import router as start_router
 from handlers.common.language import router as language_router
+from handlers.common.support import router as support_router
 from handlers.customer.register import router as register_router
 from handlers.customer.select_hotel import router as select_hotel_router
 from handlers.customer.place_order import router as place_order_router
@@ -32,6 +33,7 @@ from handlers.admin.broadcasts import router as admin_broadcasts_router
 from handlers.admin.assign_driver import router as admin_assign_driver_router
 from handlers.admin.orders import router as admin_orders_router
 from handlers.admin.reports import router as admin_reports_router
+from handlers.admin.support import router as admin_support_router
 from handlers.common.fallback import router as fallback_router
 
 bot = Bot(BOT_TOKEN)  # type: ignore
@@ -45,6 +47,7 @@ dp.update.middleware(LanguageMiddleware())
 dp.include_router(cancel_router)
 dp.include_router(start_router)
 dp.include_router(language_router)
+dp.include_router(support_router)
 dp.include_router(register_router)
 dp.include_router(select_hotel_router)
 
@@ -71,6 +74,7 @@ dp.include_router(admin_broadcasts_router)
 dp.include_router(admin_assign_driver_router)
 dp.include_router(admin_orders_router)
 dp.include_router(admin_reports_router)
+dp.include_router(admin_support_router)
 
 dp.include_router(fallback_router)
 

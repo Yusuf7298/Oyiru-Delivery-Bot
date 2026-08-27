@@ -125,5 +125,14 @@
     "select_hotel_admin_title": "🏨 *Hotel Registration*\n\nPlease select your hotel to register as the Hotel Administrator:",
     "staff_invite_registered": "✅ Welcome to {hotel_name}!\n\nPlease enter your *full name* to complete your staff registration:",
     "staff_deactivated": "⏸️ Staff member deactivated.",
-    "staff_activated": "▶️ Staff member activated."
+    "staff_activated": "▶️ Staff member activated.",
+    "btn_contact_support": "📞 Contact Support",
+    "btn_admin_support": "📞 Support Settings",
+    "support_title": "📞 *Customer & Partner Support*\n\nNeed help with orders, deliveries, or account issues? Reach out to our support team:",
+    "support_phone_label": "📱 *Phone*",
+    "support_email_label": "✉️ *Email*",
+    "support_telegram_label": "💬 *Telegram*",
+    "btn_chat_telegram": "💬 Chat on Telegram",
+    "btn_call_support": "📞 Call Support",
+    "btn_email_support": "✉️ Send Email"
 }

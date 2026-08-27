@@ -9,7 +9,7 @@ def store_manager_menu(lang: str = "en") -> ReplyKeyboardMarkup:
             [KeyboardButton(text=t("btn_place_order", lang)), KeyboardButton(text=t("btn_store_new_orders", lang))],
             [KeyboardButton(text=t("btn_store_active_orders", lang)), KeyboardButton(text=t("btn_store_order_history", lang))],
             [KeyboardButton(text=t("btn_my_staff", lang)), KeyboardButton(text=t("btn_export_hotel_excel", lang))],
-            [KeyboardButton(text=t("btn_language", lang))],
+            [KeyboardButton(text=t("btn_contact_support", lang)), KeyboardButton(text=t("btn_language", lang))],
         ],
         resize_keyboard=True,
     )

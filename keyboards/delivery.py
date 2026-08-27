@@ -9,9 +9,10 @@ def delivery_menu(lang: str = "en") -> ReplyKeyboardMarkup:
     builder.button(text=t("my_deliveries", lang))
     builder.button(text=t("btn_delivery_history", lang))
     builder.button(text=t("btn_export_deliveries", lang))
-    builder.button(text=t("btn_language", lang))
     builder.button(text=t("btn_profile", lang))
-    builder.adjust(2, 2, 2)
+    builder.button(text=t("btn_language", lang))
+    builder.button(text=t("btn_contact_support", lang))
+    builder.adjust(2, 2, 2, 1)
     return builder.as_markup(resize_keyboard=True)
 
 def assigned_order_keyboard(order_id: int, lang: str = "en") -> InlineKeyboardMarkup:

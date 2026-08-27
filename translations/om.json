@@ -125,5 +125,14 @@
     "select_hotel_admin_title": "🏨 *Galmee Hoteelaa*\n\nAkka Bulchaa Hoteelaatti (Hotel Admin) galmaa'uuf maaloo hoteela keessan filadhaa:",
     "staff_invite_registered": "✅ Baga gara {hotel_name} nagaan dhuftan!\n\nGalmee keessan xumuruuf maaloo *maqaa guutuu* keessan galchaa:",
     "staff_deactivated": "⏸️ Hojjetaan dhorkameera.",
-    "staff_activated": "▶️ Hojjetaan heyyamameera."
+    "staff_activated": "▶️ Hojjetaan heyyamameera.",
+    "btn_contact_support": "📞 Deeggarsa Qunnamaa",
+    "btn_admin_support": "📞 Qunnamtii Deeggarsaa",
+    "support_title": "📞 *Deeggarsa Maamiltootaa fi Hiriyoota Hojii*\n\nAjaja, geessuu ykn herrega keessan irratti gargaarsa barbaadduu? Garee deeggarsaa keenya qunnamaa:",
+    "support_phone_label": "📱 *Bilbila*",
+    "support_email_label": "✉️ *Imeelii*",
+    "support_telegram_label": "💬 *Teleegiraama*",
+    "btn_chat_telegram": "💬 Teleegiraamaan Haasawi",
+    "btn_call_support": "📞 Bilbili",
+    "btn_email_support": "✉️ Imeelii Ergi"
 }

@@ -15,7 +15,7 @@ def admin_main_menu(lang: str = "en") -> ReplyKeyboardMarkup:
             [KeyboardButton(text=t("btn_admin_products", lang)), KeyboardButton(text=t("btn_admin_users", lang))],
             [KeyboardButton(text=t("btn_admin_orders", lang)), KeyboardButton(text=t("btn_admin_stats", lang))],
             [KeyboardButton(text=t("btn_admin_export", lang)), KeyboardButton(text=t("btn_admin_broadcast", lang))],
-            [KeyboardButton(text=t("btn_language", lang))],
+            [KeyboardButton(text=t("btn_admin_support", lang)), KeyboardButton(text=t("btn_language", lang))],
         ],
         resize_keyboard=True,
     )

@@ -7,8 +7,8 @@ def customer_menu(lang: str = "en"):
         keyboard=[
             [KeyboardButton(text=t("btn_place_order", lang))],
             [KeyboardButton(text=t("btn_my_orders", lang)), KeyboardButton(text=t("btn_export_orders", lang))],
-            [KeyboardButton(text=t("btn_language", lang)), KeyboardButton(text=t("btn_profile", lang))],
-            [KeyboardButton(text=t("btn_help", lang))],
+            [KeyboardButton(text=t("btn_profile", lang)), KeyboardButton(text=t("btn_language", lang))],
+            [KeyboardButton(text=t("btn_contact_support", lang)), KeyboardButton(text=t("btn_help", lang))],
         ],
         resize_keyboard=True,
     )
@@ -16,11 +16,10 @@ def customer_menu(lang: str = "en"):
 def customer_reorder_menu(lang: str = "en"):
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text=t("btn_reorder_last", lang))],
-            [KeyboardButton(text=t("btn_place_order", lang))],
+            [KeyboardButton(text=t("btn_reorder_last", lang)), KeyboardButton(text=t("btn_place_order", lang))],
             [KeyboardButton(text=t("btn_my_orders", lang)), KeyboardButton(text=t("btn_export_orders", lang))],
-            [KeyboardButton(text=t("btn_language", lang)), KeyboardButton(text=t("btn_profile", lang))],
-            [KeyboardButton(text=t("btn_help", lang))],
+            [KeyboardButton(text=t("btn_profile", lang)), KeyboardButton(text=t("btn_language", lang))],
+            [KeyboardButton(text=t("btn_contact_support", lang)), KeyboardButton(text=t("btn_help", lang))],
         ],
         resize_keyboard=True,
     )

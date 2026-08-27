@@ -125,5 +125,14 @@
     "select_hotel_admin_title": "🏨 *የሆቴል ምዝገባ*\n\nእንደ ሆቴል አስተዳዳሪ (Hotel Admin) ለመመዝገብ እባክዎን ሆቴልዎን ይምረጡ፡",
     "staff_invite_registered": "✅ ወደ {hotel_name} እንኳን በደህና መጡ!\n\nምዝገባዎን ለማጠናቀቅ እባክዎን *ሙሉ ስምዎን* ያስገቡ፡",
     "staff_deactivated": "⏸️ ሰራተኛው ታግዷል።",
-    "staff_activated": "▶️ ሰራተኛው ነቅቷል።"
+    "staff_activated": "▶️ ሰራተኛው ነቅቷል።",
+    "btn_contact_support": "📞 ድጋፍ ያግኙ",
+    "btn_admin_support": "📞 የድጋፍ መረጃ",
+    "support_title": "📞 *የደንበኞች እና የአጋሮች ድጋፍ*\n\nበትዕዛዝዎ፣ በማድረሻ ወይም በመለያዎ ላይ እርዳታ ይፈልጋሉ? የድጋፍ ቡድናችንን ያነጋግሩ፦",
+    "support_phone_label": "📱 *ስልክ*",
+    "support_email_label": "✉️ *ኢሜይል*",
+    "support_telegram_label": "💬 *ቴሌግራም*",
+    "btn_chat_telegram": "💬 በቴሌግራም አውራ",
+    "btn_call_support": "📞 ደውል",
+    "btn_email_support": "✉️ ኢሜይል ላክ"
 }
