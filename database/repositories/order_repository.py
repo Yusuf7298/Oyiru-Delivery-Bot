@@ -35,6 +35,10 @@ class OrderRepository(BaseRepository):
                     p_doc = await self.db["products"].find_one({"_id": item.product_id})
                     if p_doc:
                         item.product = Product.from_dict(p_doc)
+                if not item.product:
+                    p_name = item.product_name or item_doc.get("product_name") or "Product"
+                    p_unit = item.unit or item_doc.get("unit") or "KG"
+                    item.product = Product(id=item.product_id or 0, name=p_name, unit=p_unit)
                 items.append(item)
             order.items = items
         return order

@@ -27,22 +27,27 @@ router.message.filter(RoleFilter(["customer", "hotel"]))
 router.callback_query.filter(RoleFilter(["customer", "hotel"]))
 
 _QTY_RE = re.compile(
-    r"^(.+?)\s*[-=:]\s*([0-9]+(?:\.[0-9]+)?)(?:\s*(?:kg|kilos|kilo|pcs|gm|g|l|liter|litre))?$"
-    r"|"
-    r"^(.+?)\s+([0-9]+(?:\.[0-9]+)?)(?:\s*(?:kg|kilos|kilo|pcs|gm|g|l|liter|litre))?$",
+    r"^(?P<name>.+?)\s*(?:[-=:]|\s)\s*(?P<qty>[0-9]+(?:\.[0-9]+)?)\s*(?P<unit>[a-zA-Z\u1200-\u137F]*)$",
     re.IGNORECASE,
 )
 
-def _parse_line(line: str, product_map: dict) -> tuple:
+def _parse_line(line: str, product_catalog_map: dict = None) -> dict:
     line = line.strip()
+    if not line:
+        return None  # type: ignore
+
     m = _QTY_RE.match(line)
     if not m:
-        raise ValueError(f"Cannot parse `{line}` — use: Name - Quantity")
-
-    if m.group(1) is not None:
-        raw_name, raw_qty = m.group(1).strip(), m.group(2).strip()
+        # Check reverse format: e.g. "60 Habab" or "60kg Habab"
+        m2 = re.match(r"^([0-9]+(?:\.[0-9]+)?)\s*([a-zA-Z\u1200-\u137F]*)\s*(?:[-=:]|\s)\s*(.+)$", line)
+        if m2:
+            raw_qty, raw_unit, raw_name = m2.group(1), m2.group(2), m2.group(3)
+        else:
+            raise ValueError(f"Missing quantity in `{line}` — use format: `Name Quantity` (e.g. `{line} 10` or `{line} - 10kg`)")
     else:
-        raw_name, raw_qty = m.group(3).strip(), m.group(4).strip()
+        raw_name = m.group("name").strip()
+        raw_qty = m.group("qty").strip()
+        raw_unit = m.group("unit").strip() if m.group("unit") else ""
 
     try:
         qty = float(raw_qty)
@@ -52,65 +57,93 @@ def _parse_line(line: str, product_map: dict) -> tuple:
     if qty <= 0:
         raise ValueError(f"Quantity must be > 0 in `{line}`")
 
-    norm = raw_name.lower()
-    prod_id = product_map.get(norm)
-    if prod_id is None:
-        for pname, pid in product_map.items():
-            if norm in pname or pname in norm:
-                prod_id = pid
-                break
-
-    if prod_id is None:
-        raise ValueError(f"Product `{raw_name}` not found in this category")
-
-    return prod_id, qty
-
-
-def _format_prompt(cat_name: str, products: list, invalid_lines: list = None, lang: str = "en") -> str:
-    prod_list = "\n".join(f"  • {p.name} ({p.unit})" if getattr(p, "unit", None) else f"  • {p.name}" for p in products)
-    
-    examples = []
-    sample_qtys = [20, 10, 15.5]
-    for i, p in enumerate(products[:3]):
-        qty = sample_qtys[i] if i < len(sample_qtys) else 5
-        examples.append(f"`{p.name} - {qty}`")
-    example_block = "\n".join(examples)
-    
-    if lang == "am":
-        guide_title = "📝 *ትዕዛዝ እንዴት ማስገባት እንደሚችሉ ምሳሌ:*"
-        guide_desc = "የዕቃውን ስም እና የሚፈልጉትን መጠን/ኪሎግራም (KG) በእያንዳንዱ መስመር በአንድ መልእክት ይላኩ:\n"
-        hint = "_(እንዲሁም: `ስም 20` ወይም `ስም: 20` ወይም `ስም 20kg` ብለው መላክ ይችላሉ)_"
-        fix_title = "⚠️ እነዚህን ስህተት የተገኘባቸውን መስመሮች ብቻ አስተካክለው እንደገና ይላኩ:\n\n"
-        items_title = "የሚገኙ ዕቃዎች ዝርዝር:"
-    elif lang == "om":
-        guide_title = "📝 *Fakkeenya akkaataa itti ajajan:*"
-        guide_desc = "Maqaa mi'ichaa fi hamma/kiilogiraama (KG) barbaaddan sarara adda addaa irratti ergaa:\n"
-        hint = "_(Akkasumas: `Maqaa 20` yookiin `Maqaa: 20` yookiin `Maqaa 20kg` jechuun erguu dandeessu)_"
-        fix_title = "⚠️ Kanneen dogoggora qaban qofa sirreessuun deebisaa ergaa:\n\n"
-        items_title = "Mi'aawwan Argaman:"
+    # Clean unit
+    unit_lower = raw_unit.lower()
+    if unit_lower in ("kg", "kilos", "kilo", "ኪሎ"):
+        unit_str = "KG"
+    elif unit_lower in ("pcs", "pc", "ፍሬ", "ቁራጭ"):
+        unit_str = "Pcs"
+    elif unit_lower in ("box", "boxes", "ካርቶን"):
+        unit_str = "Box"
+    elif raw_unit:
+        unit_str = raw_unit.upper()
     else:
-        guide_title = "📝 *Example of how to enter your order:*"
-        guide_desc = "Send each item and its kilogram (KG) or quantity on a new line in one message:\n"
-        hint = "_(You can also type: `Name 20` or `Name: 20` or `Name 20kg`)_"
-        fix_title = "⚠️ Fix these lines only (copy, correct, and send again):\n\n"
-        items_title = "Available Items in this Category:"
+        unit_str = "KG"
 
-    body = (
-        f"📦 *{cat_name}*\n\n"
-        f"📋 {items_title}\n"
-        f"{prod_list}\n\n"
-        f"{guide_title}\n"
-        f"{guide_desc}"
-        f"{example_block}\n\n"
-        f"{hint}"
-    )
+    # Match existing catalog product if available
+    prod_id = None
+    prod_name = raw_name
+    if product_catalog_map:
+        norm = raw_name.lower()
+        if norm in product_catalog_map:
+            p = product_catalog_map[norm]
+            prod_id = p.id
+            prod_name = p.name
+            if not raw_unit and getattr(p, "unit", None):
+                unit_str = p.unit
+        else:
+            for cname, p in product_catalog_map.items():
+                if norm == cname or norm in cname or cname in norm:
+                    prod_id = p.id
+                    prod_name = p.name
+                    if not raw_unit and getattr(p, "unit", None):
+                        unit_str = p.unit
+                    break
 
+    return {
+        "product_id": prod_id,
+        "product_name": prod_name,
+        "quantity": qty,
+        "unit": unit_str,
+    }
+
+
+def _format_prompt(cat_names_str: str, invalid_lines: list = None, lang: str = "en") -> str:
+    if lang == "am":
+        title = f"🧺 *የዕቃዎች ትዕዛዝ ማዘዣ* ({cat_names_str})"
+        guide = (
+            "✍️ *የሚፈልጓቸውን ዕቃዎች እና መጠናቸውን በአንድ መልእክት በእያንዳንዱ መስመር ይጻፉ:*\n\n"
+            "📝 *ምሳሌ:*\n"
+            "`Habab 60`\n"
+            "`Papaya 100`\n"
+            "`Shinkurt 40`\n"
+            "`Kororima 5`\n"
+            "`Gebs duket 6`\n\n"
+            "_(የፈለጉትን ዕቃ እና ኪሎ/መጠን መጻፍ ይችላሉ፣ ለምሳሌ: `ስም 20` ወይም `ስም: 20` ወይም `ስም 20kg`)_"
+        )
+        fix_title = "⚠️ እባክዎን እነዚህን መስመሮች ብቻ መጠን/ቁጥር ጨምረው እንደገና ይላኩ:\n\n"
+    elif lang == "om":
+        title = f"🧺 *Galmee Ajaja Mi'aa* ({cat_names_str})"
+        guide = (
+            "✍️ *Mi'aawwan barbaaddan hundaafi hamma isaanii ergaa tokkoon sarara adda addaa irratti barreessaa:*\n\n"
+            "📝 *Fakkeenya:*\n"
+            "`Habab 60`\n"
+            "`Papaya 100`\n"
+            "`Shinkurt 40`\n"
+            "`Kororima 5`\n"
+            "`Gebs duket 6`\n\n"
+            "_(Mi'aawwan barbaaddan hunda barreessuu dandeessu: `Maqaa 20` yookiin `Maqaa: 20` yookiin `Maqaa 20kg`)_"
+        )
+        fix_title = "⚠️ Maaloo kanneen dogoggora qaban qofa sirreessuun deebisaa ergaa:\n\n"
+    else:
+        title = f"🧺 *Order Items Entry* ({cat_names_str})"
+        guide = (
+            "✍️ *Send all your order items and quantities in one message:*\n"
+            "_(Each item on a new line)_\n\n"
+            "📝 *Example:*\n"
+            "`Habab 60`\n"
+            "`Papaya 100`\n"
+            "`Shinkurt 40`\n"
+            "`Kororima 5`\n"
+            "`Gebs duket 6`\n\n"
+            "_(You can enter any product and quantity: `Name 20`, `Name: 20`, or `Name - 20kg`)_"
+        )
+        fix_title = "⚠️ Please specify quantity for these lines and send again:\n\n"
+
+    body = f"{title}\n\n{guide}"
     if invalid_lines:
         bad = "\n".join(f"  ❌ {ln}" for ln in invalid_lines)
-        body = (
-            f"{fix_title}"
-            f"{bad}\n\n──────────────\n"
-        ) + body
+        body = f"{fix_title}{bad}\n\n──────────────\n" + body
 
     return body
 
@@ -123,9 +156,9 @@ async def start_category_order(message: Message, state: FSMContext, session: Asy
         await message.answer("❌ No product categories are available right now.")
         return
 
-    await state.update_data(selected_cat_ids=[], quantities={}, language=lang)
+    await state.update_data(selected_cat_ids=[], items=[], language=lang)
     await message.answer(
-        "🧺 New Order\n\n"
+        "🧺 *New Order*\n\n"
         "Select the categories you want to order from, then tap ➡️ Continue.",
         reply_markup=category_select_keyboard(cats, [], lang=lang),
         parse_mode="Markdown",
@@ -157,171 +190,151 @@ async def categories_done(callback: CallbackQuery, state: FSMContext, session: A
     if not selected:
         await callback.answer("⚠️ Please select at least one category.", show_alert=True)
         return
-    prod_repo = ProductRepository(session)
-    valid = []
-    quantities = {}
+
+    cat_repo = CategoryRepository(session)
+    selected_cats = []
     for cid in selected:
-        prods = await prod_repo.get_products_by_category(cid)
-        if prods:
-            valid.append(cid)
-            for p in prods:
-                quantities[str(p.id)] = 0.0
+        cat = await cat_repo.get_by_id(cid)
+        if cat:
+            selected_cats.append(cat)
 
-    if not valid:
-        await callback.answer("⚠️ Selected categories have no active products.", show_alert=True)
-        return
-
-    await state.update_data(selected_cat_ids=valid, cat_index=0, quantities=quantities, language=lang)
+    cat_names_str = ", ".join(c.name for c in selected_cats) if selected_cats else "General"
+    await state.update_data(selected_cat_ids=selected, cat_names_str=cat_names_str, language=lang)
     await state.set_state(OrderState.entering_quantities)
     try:
         await callback.message.delete()
     except Exception:
         pass
-    await _send_category_prompt(callback.bot, callback.from_user.id, state, session, lang=lang)
+
+    text = _format_prompt(cat_names_str, lang=lang)
+    await callback.message.answer(text, parse_mode="Markdown")
     try:
         await callback.answer()
     except Exception:
         pass
 
 
-async def _send_category_prompt(bot, chat_id: int, state: FSMContext, session: AsyncSession, invalid_lines: list = None, lang: str = "en"):
-    data = await state.get_data()
-    user_lang = data.get("language", lang) or lang
-    selected: list = data["selected_cat_ids"]
-    idx: int = data["cat_index"]
-    if idx >= len(selected):
-        await bot.send_message(
-            chat_id=chat_id,
-            text=(
-                "📝 Optional Note\n\n"
-                "Add a note for this order _(e.g. Urgent / Deliver before 9 AM)_\n\n"
-                "Or tap ⏭️ Skip Note to continue."
-            ),
-            reply_markup=skip_note_keyboard(lang=user_lang),
-            parse_mode="Markdown",
-        )
-        await state.set_state(OrderState.entering_note)
-        return
-
-    cat_id = selected[idx]
-    cat = await CategoryRepository(session).get_by_id(cat_id)
-    products = await ProductRepository(session).get_products_by_category(cat_id)
-    progress = f"({idx + 1}/{len(selected)})"
-    text = _format_prompt(f"{cat.name} {progress}", products, invalid_lines, lang=user_lang)
-    await bot.send_message(chat_id=chat_id, text=text, parse_mode="Markdown")
-
-
 @router.message(OrderState.entering_quantities)
 async def receive_quantities(message: Message, state: FSMContext, session: AsyncSession, lang: str = "en"):
     data = await state.get_data()
     user_lang = data.get("language", lang) or lang
-    selected: list = data["selected_cat_ids"]
-    idx: int = data["cat_index"]
-    quantities: dict = data.get("quantities", {})
-    cat_id = selected[idx]
-    products = await ProductRepository(session).get_products_by_category(cat_id)
-    product_map = {p.name.lower(): p.id for p in products}
-    lines = [ln.strip() for ln in message.text.splitlines() if ln.strip()]
+    cat_names_str = data.get("cat_names_str", "Order Items")
+
+    lines = [ln.strip() for ln in (message.text or "").splitlines() if ln.strip()]
     if not lines:
-        await message.answer("❌ Your message is empty. Please enter the quantities.")
+        await message.answer("❌ Your message is empty. Please enter your order items.")
         return
 
-    parsed: dict = {}
+    prod_repo = ProductRepository(session)
+    all_prods = await prod_repo.get_active_products()
+    catalog_map = {p.name.lower(): p for p in all_prods}
+
+    parsed_items: list = []
     invalid: list = []
 
     for line in lines:
         try:
-            prod_id, qty = _parse_line(line, product_map)
-            parsed[prod_id] = qty
+            item_data = _parse_line(line, catalog_map)
+            if item_data:
+                parsed_items.append(item_data)
         except ValueError as exc:
             invalid.append(str(exc))
 
     if invalid:
-        await _send_category_prompt(
-            message.bot, message.from_user.id, state, session,
-            invalid_lines=invalid,
-            lang=user_lang,
+        await message.answer(
+            _format_prompt(cat_names_str, invalid_lines=invalid, lang=user_lang),
+            parse_mode="Markdown",
         )
         return
-    for prod_id, qty in parsed.items():
-        quantities[str(prod_id)] = qty
 
-    await state.update_data(quantities=quantities, cat_index=idx + 1)
-    await _send_category_prompt(message.bot, message.from_user.id, state, session, lang=user_lang)
+    if not parsed_items:
+        await message.answer("❌ No valid items could be parsed. Please try again.")
+        return
+
+    await state.update_data(items=parsed_items)
+    await state.set_state(OrderState.entering_note)
+    await message.answer(
+        "📝 *Optional Delivery Note*\n\n"
+        "Add a note for this order _(e.g. Urgent / Deliver before 9 AM)_\n\n"
+        "Or tap ⏭️ Skip Note to proceed.",
+        reply_markup=skip_note_keyboard(lang=user_lang),
+        parse_mode="Markdown",
+    )
 
 
 @router.message(OrderState.entering_note)
-async def receive_note(message: Message, state: FSMContext, session: AsyncSession):
-    raw = message.text.strip()
-    note = None if raw in ("⏭️ Skip Note", "/skip", "skip", "—") else raw
+async def receive_note(message: Message, state: FSMContext, session: AsyncSession, lang: str = "en"):
+    raw = (message.text or "").strip()
+    note = None if raw in ("⏭️ Skip Note", "/skip", "skip", "—", "⏭️ ማስታወሻ ይለፉ", "⏭️ Yaadannoo Dhiisi") else raw
     await state.update_data(note=note)
     data = await state.get_data()
     if data.get("order_method") == "upload":
         from handlers.customer.upload_order import show_upload_review
-        await show_upload_review(message, state, session)
+        await show_upload_review(message, state, session, lang=lang)
     else:
         await state.set_state(OrderState.reviewing_order)
-        await _send_review(message, state, session)
+        await _send_review(message, state, session, lang=lang)
 
 
-async def _send_review(message: Message, state: FSMContext, session: AsyncSession):
+async def _send_review(message: Message, state: FSMContext, session: AsyncSession, lang: str = "en"):
     data = await state.get_data()
-    quantities: dict = data.get("quantities", {})
+    items: list = data.get("items", [])
     note = data.get("note")
     user_repo = UserRepository(session)
     customer = await user_repo.get_by_telegram_id(
         message.from_user.id if message.from_user else message.chat.id
     )
     hotel_name = customer.hotel.name if (customer and customer.hotel) else "—"
-    prod_repo = ProductRepository(session)
+
     lines = []
-    for prod_id_str, qty in quantities.items():
-        if float(qty) < 0:
-            continue
-        prod = await prod_repo.get_by_id(int(prod_id_str))
-        if prod:
-            lines.append(f"• {prod.name} — {qty} KG")
+    total_qty = 0.0
+    for item in items:
+        pname = item.get("product_name") or "Product"
+        qty = item.get("quantity", 0.0)
+        unit = item.get("unit", "KG")
+        lines.append(f"• {pname} — {qty} {unit}")
+        try:
+            total_qty += float(qty)
+        except (ValueError, TypeError):
+            pass
 
     if not lines:
         await message.answer(
-            "⚠️ No products found in selected categories. Please start a new order."
+            "⚠️ No order items found. Please start a new order."
         )
         await state.clear()
         return
+
     text = (
-        "📋 Order Review\n\n"
-        f"🏨 Hotel: {hotel_name}\n"
-        f"👤 Customer: {customer.full_name if customer else '—'}\n\n"
-        f"🛒 *Products:*\n" + "\n".join(lines) + "\n\n"
+        "📋 *Order Review*\n\n"
+        f"🏨 Hotel: *{hotel_name}*\n"
+        f"👤 Customer: *{customer.full_name if customer else '—'}*\n\n"
+        f"🛒 *Products ({len(items)} items — Total {total_qty:.1f} KG):*\n" + "\n".join(lines) + "\n\n"
         f"📝 Note: {note or '—'}"
     )
-    await message.answer(text, reply_markup=order_review_keyboard(), parse_mode="Markdown")
+    await message.answer(text, reply_markup=order_review_keyboard(lang=lang), parse_mode="Markdown")
 
 @router.callback_query(OrderState.reviewing_order, F.data == "order_edit_note")
-async def edit_note(callback: CallbackQuery, state: FSMContext):
+async def edit_note(callback: CallbackQuery, state: FSMContext, lang: str = "en"):
     await callback.message.answer(
         "📝 Enter a new note, or tap ⏭️ Skip Note to remove it:",
-        reply_markup=skip_note_keyboard(),
+        reply_markup=skip_note_keyboard(lang=lang),
         parse_mode="Markdown",
     )
     await state.set_state(OrderState.entering_note)
     await callback.answer()
 
 @router.callback_query(OrderState.reviewing_order, F.data == "order_submit")
-async def submit_order(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+async def submit_order(callback: CallbackQuery, state: FSMContext, session: AsyncSession, lang: str = "en"):
     data = await state.get_data()
-    quantities: dict = data.get("quantities", {})
+    items: list = data.get("items", [])
     note = data.get("note")
     user_repo = UserRepository(session)
     customer = await user_repo.get_by_telegram_id(callback.from_user.id)
     if not customer or not customer.hotel_id:
         await callback.answer("❌ You are not associated with a hotel.", show_alert=True)
         return
-    items = [
-        {"product_id": int(pid), "quantity": float(qty)}
-        for pid, qty in quantities.items()
-        if float(qty) > 0
-    ]
+
     if not items:
         await callback.answer("❌ Please enter at least one product with quantity > 0.", show_alert=True)
         return
@@ -401,25 +414,19 @@ async def repeat_last_order(message: Message, state: FSMContext, session: AsyncS
         from handlers.customer.upload_order import show_upload_review
         await show_upload_review(message, state, session, lang=lang)
         return
-    prod_repo = ProductRepository(session)
-    quantities: dict = {}
-    selected_cat_ids: list = []
-    seen: set = set()
 
+    items: list = []
     for item in last.items:
-        prod = await prod_repo.get_by_id(item.product_id)
-        if prod:
-            quantities[str(prod.id)] = item.quantity
-            if prod.category_id not in seen:
-                selected_cat_ids.append(prod.category_id)
-                seen.add(prod.category_id)
+        pname = (item.product.name if item.product else getattr(item, "product_name", None)) or "Product"
+        punit = getattr(item.product, "unit", getattr(item, "unit", "KG")) or "KG"
+        items.append({
+            "product_id": item.product_id,
+            "product_name": pname,
+            "quantity": item.quantity,
+            "unit": punit,
+        })
 
-    await state.update_data(
-        selected_cat_ids=selected_cat_ids,
-        cat_index=len(selected_cat_ids),
-        quantities=quantities,
-        note=last.note,
-    )
+    await state.update_data(items=items, note=last.note)
     await state.set_state(OrderState.reviewing_order)
     await _send_review(message, state, session, lang=lang)
 

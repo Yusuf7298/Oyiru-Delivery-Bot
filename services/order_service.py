@@ -49,7 +49,9 @@ class OrderService:
             for item_data in items:
                 order_item = OrderItem(
                     order_id=saved_order.id,
-                    product_id=item_data["product_id"],
+                    product_id=item_data.get("product_id"),
+                    product_name=item_data.get("product_name"),
+                    unit=item_data.get("unit", "KG"),
                     quantity=item_data["quantity"],
                 )
                 await self.item_repo.create_item(order_item)

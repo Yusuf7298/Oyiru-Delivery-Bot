@@ -6,7 +6,9 @@ class OrderItem(Base):
         self,
         id: Optional[int] = None,
         order_id: int = 0,
-        product_id: int = 0,
+        product_id: Optional[int] = None,
+        product_name: Optional[str] = None,
+        unit: Optional[str] = "KG",
         quantity: float = 0.0,
         order: Optional[Any] = None,
         product: Optional[Any] = None,
@@ -16,6 +18,8 @@ class OrderItem(Base):
         self.id = id
         self.order_id = order_id
         self.product_id = product_id
+        self.product_name = product_name
+        self.unit = unit or "KG"
         self.quantity = quantity
         self.order = order
         self.product = product
