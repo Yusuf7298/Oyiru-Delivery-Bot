@@ -174,9 +174,11 @@ async def user_detail(callback: CallbackQuery, session: AsyncSession, lang: str 
         h = await HotelRepository(session).get_by_id(user.hotel_id)
         hotel_info = f"\n🏨 Hotel: {h.name if h else '—'}"
 
+    uname_str = f"@{user.username}" if user.username else "—"
     text = (
         f"👤 *{user.full_name}*\n\n"
         f"📱 Phone: {user.phone or '—'}\n"
+        f"🏷 Username: {uname_str}\n"
         f"🆔 Telegram ID: `{user.telegram_id}`\n"
         f"🔑 Role: *{role_label}*{hotel_info}\n"
         f"📌 Status: {status}"

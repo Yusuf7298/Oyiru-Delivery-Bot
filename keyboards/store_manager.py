@@ -36,6 +36,10 @@ def staff_list_keyboard(staff_list: list, hotel_id: int, lang: str = "en") -> In
 
 def staff_detail_keyboard(staff_user, hotel_id: int, lang: str = "en") -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
+    if getattr(staff_user, "username", None):
+        builder.button(text="💬 Chat on Telegram", url=f"https://t.me/{staff_user.username}")
+    elif getattr(staff_user, "telegram_id", None):
+        builder.button(text="💬 Chat on Telegram", url=f"tg://user?id={staff_user.telegram_id}")
     toggle_text = t("btn_deactivate", lang) if staff_user.is_active else t("btn_activate", lang)
     toggle_cb = f"hotel_staff_toggle:{staff_user.id}:{hotel_id}"
     builder.button(text=toggle_text, callback_data=toggle_cb)

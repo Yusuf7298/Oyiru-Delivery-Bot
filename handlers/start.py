@@ -35,6 +35,9 @@ async def start(message: Message, state: FSMContext, session: AsyncSession, lang
     auth = AuthService(user_repo)
     user = await auth.user_exists(message.from_user.id)
     if user:
+        if message.from_user.username and message.from_user.username != user.username:
+            user.username = message.from_user.username
+            await user_repo.update_username(user.telegram_id, user.username)
         user_lang = getattr(user, "language", lang) or lang
         await _show_user_menu(message, user, session, lang=user_lang)
         return

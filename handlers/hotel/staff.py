@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -113,12 +113,14 @@ async def staff_detail_callback(callback: CallbackQuery, session: AsyncSession, 
 
     status_str = "✅ Active" if staff_user.is_active else "⏸️ Inactive (Deactivated)"
     reg_date = staff_user.created_at.strftime("%Y-%m-%d") if getattr(staff_user, "created_at", None) else "—"
+    uname_str = f"@{staff_user.username}" if staff_user.username else "—"
 
     text = (
         f"👤 *Staff Profile*\n\n"
         f"📛 Name: *{staff_user.full_name}*\n"
         f"📞 Phone: *{staff_user.phone or '—'}*\n"
-        f"🆔 Telegram ID: {staff_user.telegram_id}\n"
+        f"🏷 Username: {uname_str}\n"
+        f"🆔 Telegram ID: `{staff_user.telegram_id}`\n"
         f"📌 Status: *{status_str}*\n"
         f"📦 Total Orders Placed: *{len(staff_orders)}*\n"
         f"📅 Registered: *{reg_date}*"
@@ -152,12 +154,14 @@ async def staff_toggle_callback(callback: CallbackQuery, session: AsyncSession, 
     staff_orders = await order_repo.get_customer_orders(staff_user.id)
     status_str = "✅ Active" if new_status else "⏸️ Inactive (Deactivated)"
     reg_date = staff_user.created_at.strftime("%Y-%m-%d") if getattr(staff_user, "created_at", None) else "—"
+    uname_str = f"@{staff_user.username}" if staff_user.username else "—"
 
     text = (
         f"👤 *Staff Profile*\n\n"
         f"📛 Name: *{staff_user.full_name}*\n"
         f"📞 Phone: *{staff_user.phone or '—'}*\n"
-        f"🆔 Telegram ID: {staff_user.telegram_id}\n"
+        f"🏷 Username: {uname_str}\n"
+        f"🆔 Telegram ID: `{staff_user.telegram_id}`\n"
         f"📌 Status: *{status_str}*\n"
         f"📦 Total Orders Placed: *{len(staff_orders)}*\n"
         f"📅 Registered: *{reg_date}*"

@@ -122,3 +122,10 @@ class UserRepository(BaseRepository):
             staff.append(user)
         return staff
 
+    async def update_username(self, telegram_id: int, username: Optional[str]) -> None:
+        if username:
+            await self.db["users"].update_one(
+                {"telegram_id": telegram_id},
+                {"$set": {"username": username}}
+            )
+
