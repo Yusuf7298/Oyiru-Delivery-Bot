@@ -26,17 +26,18 @@ except Exception:
 def _now() -> str:
     return datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
 def _products_block(order) -> str:
-    if getattr(order, "file_path", None):
+    if getattr(order, "file_path", None) or getattr(order, "telegram_file_id", None):
         fname = getattr(order, "original_filename", None) or "uploaded file"
         ftype = (getattr(order, "file_type", None) or "document").title()
         return f"📎 {ftype}: `{fname}`"
     try:
         items = getattr(order, "items", []) or []
-        lines = [
-            f"  • {item.product.name} — {item.quantity} {item.product.unit}"
-            for item in items
-            if getattr(item, "product", None)
-        ]
+        lines = []
+        for item in items:
+            pname = (item.product.name if getattr(item, "product", None) else getattr(item, "product_name", None)) or "Item"
+            punit = (getattr(item.product, "unit", None) if getattr(item, "product", None) else getattr(item, "unit", "KG")) or "KG"
+            qty = getattr(item, "quantity", 0)
+            lines.append(f"  • {pname} — {qty} {punit}")
         return "\n".join(lines) if lines else "—"
     except Exception:
         return "—"
