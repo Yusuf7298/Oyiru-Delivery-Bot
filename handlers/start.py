@@ -74,19 +74,20 @@ async def start(message: Message, state: FSMContext, session: AsyncSession, lang
                 )
                 return
 
-    # Normal registration: Always show all active hotels so anyone can register
-    all_hotels = await hotel_repo.get_all_active() # type: ignore
+    # Normal registration: Show only unclaimed active hotels so once a hotel is registered, it doesn't show to others
+    claimed_ids = await user_repo.get_claimed_hotel_ids()
+    available_hotels = await hotel_repo.get_unclaimed_active_hotels(claimed_ids)
 
-    if not all_hotels:
+    if not available_hotels:
         await message.answer(
-            "⚠️ No hotels available for registration. Please contact the administrator.",
+            t("no_unclaimed_hotels_msg", lang),
             parse_mode="Markdown"
         )
         return
 
     await message.answer(
         t("select_hotel_title", lang),
-        reply_markup=hotels_keyboard(all_hotels),
+        reply_markup=hotels_keyboard(available_hotels),
         parse_mode="Markdown"
     )
 

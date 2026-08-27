@@ -21,8 +21,12 @@ from keyboards.store_manager import (
 from filters.role_filter import RoleFilter
 
 router = Router()
-router.message.filter(RoleFilter(["store_manager", "admin"]))
-router.callback_query.filter(RoleFilter(["store_manager", "admin"]))
+router.message.filter(RoleFilter(["store_manager"]))
+router.callback_query.filter(RoleFilter(["store_manager"]))
+
+NEW_ORDERS_BTNS = ["📥 New Orders", "📥 አዳዲስ ትዕዛዞች", "📥 Ajajawwan Haaraa", "New Orders"]
+ACTIVE_ORDERS_BTNS = ["📦 Active Orders", "📦 የሚሰሩ ትዕዛዞች", "📦 Ajajawwan Hojii Irra Jiran", "Active Orders"]
+ORDER_HISTORY_BTNS = ["📜 Order History", "📜 የትዕዛዝ ታሪክ", "📜 Seenaa Ajajaa", "Order History"]
 
 def _order_summary(order) -> str:
     lines = []
@@ -109,22 +113,23 @@ async def _send_order_card(message: Message, order, reply_markup=None):
 
 
 @router.message(F.text == "📋 Store Manager")
-async def store_manager_home(message: Message):
+async def store_manager_home(message: Message, lang: str = "en"):
     await message.answer(
         "🏪 *Store Manager Panel*\n\nChoose an option:",
-        reply_markup=store_manager_menu(),
+        reply_markup=store_manager_menu(lang=lang),
         parse_mode="Markdown",
     )
 
-@router.message(F.text == "📥 New Orders")
-async def new_orders(message: Message, session: AsyncSession):
+@router.message(F.text.in_(NEW_ORDERS_BTNS))
+async def new_orders(message: Message, session: AsyncSession, lang: str = "en"):
     user_repo = UserRepository(session)
     sm = await user_repo.get_by_telegram_id(message.from_user.id) # type: ignore
-    if not sm or not sm.hotel_id:
-        await message.answer("❌ You are not assigned to a hotel.")
-        return
     repo = OrderRepository(session)
-    orders = await repo.get_new_orders(sm.hotel_id)
+    if sm and sm.hotel_id:
+        orders = await repo.get_new_orders(sm.hotel_id)
+    else:
+        orders = await repo.pending_orders()
+
     if not orders:
         await message.answer("✅ No new orders pending review.")
         return
@@ -135,17 +140,31 @@ async def new_orders(message: Message, session: AsyncSession):
             reply_markup=order_action_keyboard(order.id, order.status, has_file=bool(order.file_path)),
         )
 
-@router.message(F.text == "📦 Active Orders")
-async def active_orders(message: Message, session: AsyncSession):
+@router.message(F.text.in_(ACTIVE_ORDERS_BTNS))
+async def active_orders(message: Message, session: AsyncSession, lang: str = "en"):
     user_repo = UserRepository(session)
     sm = await user_repo.get_by_telegram_id(message.from_user.id) # type: ignore
-    if not sm or not sm.hotel_id:
-        await message.answer("❌ You are not assigned to a hotel.")
-        return
     repo = OrderRepository(session)
-    orders = await repo.get_active_orders(sm.hotel_id)
+    if sm and sm.hotel_id:
+        orders = await repo.get_active_orders(sm.hotel_id)
+    else:
+        cursor = repo.db["orders"].find({
+            "status": {"$in": [
+                OrderStatus.APPROVED.value,
+                OrderStatus.PREPARING.value,
+                OrderStatus.PACKED.value,
+                OrderStatus.OUT_FOR_DELIVERY.value
+            ]}
+        }).sort("created_at", -1)
+        from database.models.order import Order
+        orders = []
+        async for doc in cursor:
+            o = await repo._populate_order(Order.from_dict(doc))
+            if o:
+                orders.append(o)
+
     if not orders:
-        await message.answer("No active orders right now.")
+        await message.answer("📦 No active orders right now.")
         return
     for order in orders:
         await _send_order_card(
@@ -155,17 +174,26 @@ async def active_orders(message: Message, session: AsyncSession):
         )
 
 
-@router.message(F.text == "📜 Order History")
-async def order_history(message: Message, session: AsyncSession):
+@router.message(F.text.in_(ORDER_HISTORY_BTNS))
+async def order_history(message: Message, session: AsyncSession, lang: str = "en"):
     user_repo = UserRepository(session)
     sm = await user_repo.get_by_telegram_id(message.from_user.id) # type: ignore
-    if not sm or not sm.hotel_id:
-        await message.answer("❌ You are not assigned to a hotel.")
-        return
     repo = OrderRepository(session)
-    orders = await repo.get_order_history(sm.hotel_id)
+    if sm and sm.hotel_id:
+        orders = await repo.get_order_history(sm.hotel_id)
+    else:
+        cursor = repo.db["orders"].find({
+            "status": {"$in": [OrderStatus.DELIVERED.value, OrderStatus.CANCELLED.value]}
+        }).sort("created_at", -1).limit(50)
+        from database.models.order import Order
+        orders = []
+        async for doc in cursor:
+            o = await repo._populate_order(Order.from_dict(doc))
+            if o:
+                orders.append(o)
+
     if not orders:
-        await message.answer("No completed orders yet.")
+        await message.answer("📜 No completed orders yet.")
         return
     for order in orders:
         await _send_order_card(message, order)

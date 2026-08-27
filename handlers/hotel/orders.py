@@ -12,8 +12,8 @@ from filters.role_filter import RoleFilter
 from states.store_manager import StoreManagerState
 from sqlalchemy.ext.asyncio import AsyncSession
 router = Router()
-router.message.filter(RoleFilter(["hotel", "hotel_admin", "store_manager", "admin"]))
-router.callback_query.filter(RoleFilter(["hotel", "hotel_admin", "store_manager", "admin"]))
+router.message.filter(RoleFilter(["hotel", "hotel_admin"]))
+router.callback_query.filter(RoleFilter(["hotel", "hotel_admin"]))
 
 from utils.i18n import t
 

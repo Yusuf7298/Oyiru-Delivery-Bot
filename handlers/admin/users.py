@@ -72,10 +72,17 @@ async def users_back(callback: CallbackQuery, lang: str = "en"):
 
 
 @router.callback_query(F.data.startswith("admin_users_list:"))
-async def list_users_paginated(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
-    parts = callback.data.split(":")  # type: ignore
-    role_key = parts[1]
-    page = int(parts[2]) if len(parts) > 2 else 1
+async def list_users_paginated(
+    callback: CallbackQuery,
+    session: AsyncSession,
+    lang: str = "en",
+    role_key: Optional[str] = None,
+    page: Optional[int] = None,
+):
+    if role_key is None or page is None:
+        parts = (callback.data or "").split(":")
+        role_key = role_key or (parts[1] if len(parts) > 1 else "all")
+        page = page or (int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 1)
 
     repo = UserRepository(session)
     if role_key == "all":
@@ -256,16 +263,16 @@ async def driver_add_username(message: Message, state: FSMContext, session: Asyn
     if existing:
         await user_repo.set_role(existing, "driver")
         await user_repo.set_active(existing, True)
-        if username_clean:
-            await user_repo.update_username(existing.telegram_id, username_clean)
-        
-        # Send direct welcome message to the existing telegram account
-        if existing.telegram_id:
+        bot_info = await message.bot.get_me()
+        invite_link = f"https://t.me/{bot_info.username}?start=driver_join"
+
+        target_chat = existing.telegram_id if existing.telegram_id else (f"@{username_clean}" if username_clean else None)
+        if target_chat:
             try:
                 user_lang = getattr(existing, "language", "en") or "en"
-                uname_tag = f"@{existing.username}" if existing.username else existing.full_name
+                uname_tag = f"@{username_clean}" if username_clean else (f"@{existing.username}" if existing.username else existing.full_name)
                 await message.bot.send_message( # type: ignore
-                    chat_id=existing.telegram_id,
+                    chat_id=target_chat,
                     text=(
                         f"🎉 <b>Welcome to Oyiru Delivery Team, {uname_tag}!</b>\n\n"
                         "You have been registered as an active <b>Delivery Driver</b>.\n"
@@ -276,19 +283,35 @@ async def driver_add_username(message: Message, state: FSMContext, session: Asyn
                 )
                 welcome_sent = True
             except Exception as e:
-                logger.warning(f"Could not send welcome message to driver {existing.telegram_id}: {e}")
+                logger.info(f"Could not send welcome message to driver {target_chat}: {e}")
 
-        welcome_note = "✅ Welcome message sent directly to driver on Telegram!" if welcome_sent else "ℹ️ Driver updated in system."
-        await message.answer(
-            f"🎉 *Delivery Driver Updated Successfully!*\n\n"
-            f"👤 *Name*: {existing.full_name}\n"
-            f"📱 *Phone*: {existing.phone or formatted_phone}\n"
-            f"🏷 *Username*: @{username_clean or existing.username or '—'}\n"
-            f"🔑 *Role*: 🚚 Delivery Driver\n"
-            f"📌 *Status*: ✅ Active\n\n"
-            f"{welcome_note}",
-            parse_mode="Markdown"
+        import html
+        name_esc = html.escape(str(existing.full_name or driver_name))
+        phone_esc = html.escape(str(existing.phone or formatted_phone))
+        uname_val = username_clean or existing.username or "—"
+        uname_esc = html.escape(f"@{uname_val}" if uname_val != "—" else "—")
+        
+        if welcome_sent:
+            welcome_note = "✅ <b>Welcome message sent directly to driver on Telegram!</b>"
+        else:
+            welcome_note = (
+                f"🔗 <b>Invite Link for Driver</b>:\n<code>{invite_link}</code>\n\n"
+                "<i>Share this link with the driver so they can open the bot and access their Delivery Dashboard.</i>"
+            )
+
+        text = (
+            f"🎉 <b>Delivery Driver Updated Successfully!</b>\n\n"
+            f"👤 <b>Name</b>: {name_esc}\n"
+            f"📱 <b>Phone</b>: {phone_esc}\n"
+            f"🏷 <b>Username</b>: {uname_esc}\n"
+            f"🔑 <b>Role</b>: 🚚 Delivery Driver\n"
+            f"📌 <b>Status</b>: ✅ Active\n\n"
+            f"{welcome_note}"
         )
+        try:
+            await message.answer(text, parse_mode="HTML")
+        except Exception:
+            await message.answer(text)
         return
 
     from database.models.user import User
@@ -303,41 +326,69 @@ async def driver_add_username(message: Message, state: FSMContext, session: Asyn
 
     bot_info = await message.bot.get_me()
     invite_link = f"https://t.me/{bot_info.username}?start=driver_join"
-    uname_str = f"@{username_clean}" if username_clean else "—"
+    
+    target_chat = f"@{username_clean}" if username_clean else None
+    if target_chat:
+        try:
+            await message.bot.send_message( # type: ignore
+                chat_id=target_chat,
+                text=(
+                    f"🎉 <b>Welcome to Oyiru Delivery Team, @{username_clean}!</b>\n\n"
+                    "You have been registered as an active <b>Delivery Driver</b>.\n"
+                    "Use /start to open your delivery dashboard and view assigned orders."
+                ),
+                reply_markup=delivery_menu("en"),
+                parse_mode="HTML"
+            )
+            welcome_sent = True
+        except Exception as e:
+            logger.info(f"Could not send welcome message to driver {target_chat}: {e}")
 
-    await message.answer(
-        f"🎉 *Delivery Driver Registered Successfully!*\n\n"
-        f"👤 *Name*: {driver_name}\n"
-        f"📱 *Phone*: {formatted_phone}\n"
-        f"🏷 *Username*: {uname_str}\n"
-        f"🔑 *Role*: 🚚 Delivery Driver\n"
-        f"📌 *Status*: ✅ Active\n\n"
-        f"🔗 *Invite Link for Driver*:\n`{invite_link}`\n\n"
-        "When the driver opens this link in Telegram, they will instantly access their Delivery Dashboard.",
-        parse_mode="Markdown"
+    import html
+    name_esc = html.escape(str(driver_name))
+    phone_esc = html.escape(str(formatted_phone))
+    uname_str = f"@{username_clean}" if username_clean else "—"
+    uname_esc = html.escape(uname_str)
+
+    if welcome_sent:
+        welcome_note = "✅ <b>Welcome message sent directly to driver on Telegram!</b>"
+    else:
+        welcome_note = (
+            f"🔗 <b>Invite Link for Driver</b>:\n<code>{invite_link}</code>\n\n"
+            "<i>Share this link with the driver so they can open the bot and access their Delivery Dashboard.</i>"
+        )
+
+    text = (
+        f"🎉 <b>Delivery Driver Registered Successfully!</b>\n\n"
+        f"👤 <b>Name</b>: {name_esc}\n"
+        f"📱 <b>Phone</b>: {phone_esc}\n"
+        f"🏷 <b>Username</b>: {uname_esc}\n"
+        f"🔑 <b>Role</b>: 🚚 Delivery Driver\n"
+        f"📌 <b>Status</b>: ✅ Active\n\n"
+        f"{welcome_note}"
     )
+    try:
+        await message.answer(text, parse_mode="HTML")
+    except Exception:
+        await message.answer(text)
 
 
 # Legacy callback compatibility handlers redirecting to admin_users_list
 @router.callback_query(F.data == "admin_users_customers")
 async def list_customers_legacy(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
-    callback.data = "admin_users_list:customer:1"
-    await list_users_paginated(callback, session, lang=lang)
+    await list_users_paginated(callback, session, lang=lang, role_key="customer", page=1)
 
 @router.callback_query(F.data == "admin_users_store_managers")
 async def list_store_managers_legacy(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
-    callback.data = "admin_users_list:store_manager:1"
-    await list_users_paginated(callback, session, lang=lang)
+    await list_users_paginated(callback, session, lang=lang, role_key="store_manager", page=1)
 
 @router.callback_query(F.data == "admin_users_delivery")
 async def list_delivery_legacy(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
-    callback.data = "admin_users_list:driver:1"
-    await list_users_paginated(callback, session, lang=lang)
+    await list_users_paginated(callback, session, lang=lang, role_key="driver", page=1)
 
 @router.callback_query(F.data == "admin_users_admins")
 async def list_admins_legacy(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
-    callback.data = "admin_users_list:admin:1"
-    await list_users_paginated(callback, session, lang=lang)
+    await list_users_paginated(callback, session, lang=lang, role_key="admin", page=1)
 
 
 @router.callback_query(F.data.startswith("admin_user_detail:"))
@@ -529,3 +580,166 @@ async def user_set_role(callback: CallbackQuery, session: AsyncSession, lang: st
         reply_markup=user_detail_keyboard(user, back_role=back_role, back_page=back_page, lang=lang),
         parse_mode="Markdown",
     )
+
+
+@router.callback_query(F.data.startswith("admin_user_change_hotel:"))
+async def user_change_hotel_prompt(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
+    parts = callback.data.split(":")  # type: ignore
+    user_id = int(parts[1])
+    back_role = parts[2] if len(parts) > 2 else "all"
+    back_page = int(parts[3]) if len(parts) > 3 else 1
+
+    repo = UserRepository(session)
+    user = await repo.get(user_id)
+    if not user:
+        await callback.answer("Not found.", show_alert=True)
+        return
+
+    from database.repositories.hotel_repository import HotelRepository
+    hotels = await HotelRepository(session).get_all_active()
+    if not hotels:
+        await callback.answer("No active hotels found.", show_alert=True)
+        return
+
+    from keyboards.admin_menu import hotel_pick_keyboard
+    current_hotel_name = user.hotel.name if getattr(user, "hotel", None) else "None"
+    await safe_edit_text_or_caption(
+        callback,
+        f"🏨 *Change Hotel for {user.full_name}*\n"
+        f"Current Hotel: *{current_hotel_name}*\n\n"
+        "Select the new hotel assignment:",
+        reply_markup=hotel_pick_keyboard(user_id, hotels, back_role=back_role, back_page=back_page, lang=lang),
+        parse_mode="Markdown",
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("admin_set_hotel:"))
+async def user_set_hotel(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
+    parts = callback.data.split(":")  # type: ignore
+    user_id = int(parts[1])
+    new_hotel_id = int(parts[2])
+    back_role = parts[3] if len(parts) > 3 else "all"
+    back_page = int(parts[4]) if len(parts) > 4 else 1
+
+    repo = UserRepository(session)
+    user = await repo.get(user_id)
+    if not user:
+        await callback.answer("Not found.", show_alert=True)
+        return
+
+    from database.repositories.hotel_repository import HotelRepository
+    hotel = await HotelRepository(session).get_by_id(new_hotel_id)
+    if not hotel:
+        await callback.answer("Hotel not found.", show_alert=True)
+        return
+
+    # If user is a hotel_admin, check 1-to-1 admin constraint on the target hotel
+    role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
+    if role_val in ("hotel_admin", "hotel"):
+        existing_admin = await repo.get_hotel_admin(new_hotel_id)
+        if existing_admin and existing_admin.id != user.id and existing_admin.is_active:
+            await callback.answer(
+                f"⚠️ {hotel.name} already has an active Hotel Admin ({existing_admin.full_name}). Deactivate or reassign them first.",
+                show_alert=True
+            )
+            return
+
+    user.hotel_id = new_hotel_id
+    user.hotel = hotel
+    await repo.add(user)
+    await callback.answer(f"✅ Hotel updated to {hotel.name}", show_alert=True)
+
+    role_label = ROLE_LABELS.get(user.role, user.role)
+    status = "✅ Active" if user.is_active else "❌ Inactive"
+    uname_str = f"@{user.username}" if user.username else "—"
+
+    text = (
+        f"✅ *Hotel Assigned Successfully!*\n\n"
+        f"👤 *{user.full_name}*\n\n"
+        f"📱 Phone: {user.phone or '—'}\n"
+        f"🏷 Username: {uname_str}\n"
+        f"🆔 Telegram ID: `{user.telegram_id}`\n"
+        f"🔑 Role: *{role_label}*\n"
+        f"🏨 Hotel: *{hotel.name}*\n"
+        f"📌 Status: {status}"
+    )
+
+    await safe_edit_text_or_caption(
+        callback,
+        text,
+        reply_markup=user_detail_keyboard(user, back_role=back_role, back_page=back_page, lang=lang),
+        parse_mode="Markdown",
+    )
+
+
+@router.callback_query(F.data.startswith("admin_user_delete:"))
+async def user_delete_confirm(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
+    parts = callback.data.split(":")  # type: ignore
+    user_id = int(parts[1])
+
+    repo = UserRepository(session)
+    user = await repo.get(user_id)
+    if not user:
+        await callback.answer("User not found.", show_alert=True)
+        return
+
+    from keyboards.admin_menu import confirm_delete_keyboard
+    await safe_edit_text_or_caption(
+        callback,
+        f"⚠️ Are you sure you want to permanently *delete* user *{user.full_name}*?\n\n"
+        "This will completely remove this user account from the system.",
+        reply_markup=confirm_delete_keyboard("user", user_id, lang=lang),
+        parse_mode="Markdown",
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("confirm_delete_user:"))
+async def user_delete_execute(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
+    user_id = int(callback.data.split(":")[1])  # type: ignore
+    repo = UserRepository(session)
+    user = await repo.get(user_id)
+    if not user:
+        await callback.answer("User not found.", show_alert=True)
+        return
+
+    await repo.delete(user)
+    await callback.answer("User deleted permanently.", show_alert=True)
+    await list_users_paginated(callback, session, lang=lang, role_key="all", page=1)
+
+
+@router.callback_query(F.data.startswith("cancel_delete_user:"))
+async def user_delete_cancel(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
+    user_id = int(callback.data.split(":")[1])  # type: ignore
+    repo = UserRepository(session)
+    user = await repo.get(user_id)
+    if not user:
+        await callback.answer()
+        return
+
+    role_label = ROLE_LABELS.get(user.role, user.role)
+    status = "✅ Active" if user.is_active else "❌ Inactive"
+    hotel_info = ""
+    if user.hotel_id:
+        from database.repositories.hotel_repository import HotelRepository
+        h = await HotelRepository(session).get_by_id(user.hotel_id)
+        hotel_info = f"\n🏨 Hotel: {h.name if h else '—'}"
+
+    uname_str = f"@{user.username}" if user.username else "—"
+    text = (
+        f"👤 *{user.full_name}*\n\n"
+        f"📱 Phone: {user.phone or '—'}\n"
+        f"🏷 Username: {uname_str}\n"
+        f"🆔 Telegram ID: `{user.telegram_id}`\n"
+        f"🔑 Role: *{role_label}*{hotel_info}\n"
+        f"📌 Status: {status}"
+    )
+
+    await safe_edit_text_or_caption(
+        callback,
+        text,
+        reply_markup=user_detail_keyboard(user, back_role="all", back_page=1, lang=lang),
+        parse_mode="Markdown",
+    )
+    await callback.answer()

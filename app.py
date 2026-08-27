@@ -20,6 +20,7 @@ from handlers.customer.rating import router as rating_router
 from handlers.hotel.menu import router as hotel_menu_router
 from handlers.hotel.orders import router as hotel_orders_router
 from handlers.hotel.staff import router as hotel_staff_router
+from handlers.store_manager.orders import router as store_manager_orders_router
 
 from handlers.delivery.orders import router as delivery_orders_router
 
@@ -61,6 +62,7 @@ dp.include_router(rating_router)
 dp.include_router(hotel_menu_router)
 dp.include_router(hotel_orders_router)
 dp.include_router(hotel_staff_router)
+dp.include_router(store_manager_orders_router)
 
 dp.include_router(delivery_orders_router)
 

@@ -111,26 +111,35 @@ async def hotel_add_address(message: Message, state: FSMContext):
 
 
 @router.message(HotelStates.waiting_phone)
-async def hotel_add_phone(message: Message, state: FSMContext, session: AsyncSession):
-    val = message.text.strip() # type: ignore
+async def hotel_add_phone(message: Message, state: FSMContext, session: AsyncSession, lang: str = "en"):
+    val = (message.text or "").strip()
     data = await state.get_data()
-    await state.clear()
-
-    repo = HotelRepository(session)
-    existing = await repo.get_by_name(data["name"])
-    if existing:
-        await message.answer(f"❌ A hotel named *{data['name']}* already exists.", parse_mode="Markdown")
+    hotel_name = data.get("name")
+    if not hotel_name:
+        await state.clear()
+        await message.answer("❌ Session expired. Please start adding the hotel again by tapping '➕ Add Hotel'.")
         return
 
+    await state.clear()
+    repo = HotelRepository(session)
+    existing = await repo.get_by_name(hotel_name)
+    if existing:
+        await message.answer(f"❌ A hotel named *{hotel_name}* already exists.", parse_mode="Markdown")
+        return
+
+    phone_val = None if val in ("—", "-", "--", "none", "skip", "") else val
     hotel = Hotel(
-        name=data["name"],
+        name=hotel_name,
         address=data.get("address"),
-        phone=None if val == "—" else val,
+        phone=phone_val,
+        is_active=True,
     )
     await repo.create(hotel)
     await message.answer(
-        f"✅ Hotel *{hotel.name}* created successfully.",
-        reply_markup=admin_main_menu(),
+        f"✅ Hotel *{hotel.name}* created successfully!\n\n"
+        f"📍 Address: {hotel.address or '—'}\n"
+        f"📞 Phone: {hotel.phone or '—'}",
+        reply_markup=admin_main_menu(lang=lang),
         parse_mode="Markdown",
     )
 

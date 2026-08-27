@@ -139,8 +139,25 @@ def user_detail_keyboard(user, back_role: str = "all", back_page: int = 1, lang:
     )
     builder.button(text=active_label, callback_data=active_cb)
     builder.button(text=t("btn_change_role", lang), callback_data=f"admin_user_change_role:{user.id}:{back_role}:{back_page}")
+    
+    role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
+    if role_val in ("hotel", "hotel_admin", "customer"):
+        builder.button(text=t("btn_change_hotel", lang), callback_data=f"admin_user_change_hotel:{user.id}:{back_role}:{back_page}")
+
+    builder.button(text=t("btn_delete", lang), callback_data=f"admin_user_delete:{user.id}:{back_role}:{back_page}")
     builder.button(text=t("btn_back", lang), callback_data=f"admin_users_list:{back_role}:{back_page}")
-    builder.adjust(2, 1)
+    builder.adjust(2, 2, 1)
+    return builder.as_markup()
+
+def hotel_pick_keyboard(user_id: int, hotels: list, back_role: str = "all", back_page: int = 1, lang: str = "en"):
+    builder = InlineKeyboardBuilder()
+    for h in hotels:
+        builder.button(
+            text=f"🏨 {h.name}",
+            callback_data=f"admin_set_hotel:{user_id}:{h.id}:{back_role}:{back_page}"
+        )
+    builder.button(text=t("btn_cancel", lang), callback_data=f"admin_user_detail:{user_id}:{back_role}:{back_page}")
+    builder.adjust(1)
     return builder.as_markup()
 
 def role_pick_keyboard(user_id: int, back_role: str = "all", back_page: int = 1, lang: str = "en"):

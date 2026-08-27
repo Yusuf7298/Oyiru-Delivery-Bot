@@ -141,5 +141,7 @@
     "btn_email_support": "✉️ Imeelii Ergi",
     "btn_add_driver": "➕ Konkolaachisaa Galmeessi",
     "btn_driver_invite_link": "🔗 Liankii Afeerraa Konkolaachisaa",
-    "btn_store_drivers": "🚚 Konkolaachiftoota"
+    "btn_store_drivers": "🚚 Konkolaachiftoota",
+    "select_hotel_title": "🏨 *Hoteela Keessan Filadhaa*\n\nJalqabuuf maaloo hoteela keessan filadhaa:",
+    "btn_change_hotel": "🏨 Hoteela Jijjiiri"
 }

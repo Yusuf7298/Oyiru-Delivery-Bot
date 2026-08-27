@@ -47,13 +47,22 @@ class OrderService:
 
         if items:
             for item_data in items:
-                order_item = OrderItem(
-                    order_id=saved_order.id,
-                    product_id=item_data.get("product_id"),
-                    product_name=item_data.get("product_name"),
-                    unit=item_data.get("unit", "KG"),
-                    quantity=item_data["quantity"],
-                )
+                if isinstance(item_data, OrderItem):
+                    order_item = OrderItem(
+                        order_id=saved_order.id,
+                        product_id=item_data.product_id,
+                        product_name=item_data.product_name,
+                        unit=item_data.unit or "KG",
+                        quantity=item_data.quantity,
+                    )
+                else:
+                    order_item = OrderItem(
+                        order_id=saved_order.id,
+                        product_id=item_data.get("product_id"),
+                        product_name=item_data.get("product_name"),
+                        unit=item_data.get("unit", "KG"),
+                        quantity=item_data.get("quantity", 0.0),
+                    )
                 await self.item_repo.create_item(order_item)
 
         loaded_order = await self.repo.get_order(saved_order.id)

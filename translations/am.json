@@ -141,5 +141,7 @@
     "btn_email_support": "✉️ ኢሜይል ላክ",
     "btn_add_driver": "➕ ሾፌር መዝግብ",
     "btn_driver_invite_link": "🔗 የሾፌር መጋበዣ ሊንክ",
-    "btn_store_drivers": "🚚 ሾፌሮች"
+    "btn_store_drivers": "🚚 ሾፌሮች",
+    "select_hotel_title": "🏨 *ሆቴልዎን ይምረጡ*\n\nለመጀመር እባክዎን ሆቴልዎን ይምረጡ፦",
+    "btn_change_hotel": "🏨 ሆቴል ቀይር"
 }

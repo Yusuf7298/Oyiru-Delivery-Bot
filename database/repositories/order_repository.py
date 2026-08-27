@@ -222,7 +222,13 @@ class OrderRepository(BaseRepository):
         order = await self.get_order(order_id)
         if not order:
             return None, "not_found"
-        if order.status not in (OrderStatus.SUBMITTED.value, OrderStatus.SUBMITTED, OrderStatus.APPROVED.value, OrderStatus.APPROVED):
+        valid_statuses = (
+            OrderStatus.SUBMITTED.value, OrderStatus.SUBMITTED,
+            OrderStatus.APPROVED.value, OrderStatus.APPROVED,
+            OrderStatus.PREPARING.value, OrderStatus.PREPARING,
+            OrderStatus.PACKED.value, OrderStatus.PACKED,
+        )
+        if order.status not in valid_statuses:
             return order, "not_approved"
         if order.delivery_partner_id is not None:
             return order, "already_assigned"
