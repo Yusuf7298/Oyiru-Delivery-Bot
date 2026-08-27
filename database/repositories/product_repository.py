@@ -23,6 +23,15 @@ class ProductRepository(BaseRepository):
             products.append(prod)
         return products
 
+    async def get_active_products(self) -> List[Product]:
+        cursor = self.db["products"].find({"is_active": True}).sort("name", 1)
+        products = []
+        async for doc in cursor:
+            prod = Product.from_dict(doc)
+            await self._populate_category(prod)
+            products.append(prod)
+        return products
+
     async def get_products_by_category(self, category_id: int) -> List[Product]:
         cursor = self.db["products"].find({
             "category_id": category_id,
