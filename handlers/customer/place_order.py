@@ -7,7 +7,7 @@ from filters.role_filter import RoleFilter
 from utils.i18n import t
 
 router = Router()
-router.message.filter(RoleFilter(["customer"]))
+router.message.filter(RoleFilter(["customer", "hotel"]))
 
 PLACE_ORDER_BUTTONS = ["🛒 Place Order", "🛒 ትዕዛዝ ያስገቡ", "🛒 Ajaja Galchuu"]
 

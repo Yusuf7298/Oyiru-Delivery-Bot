@@ -32,11 +32,12 @@ async def categories_menu(message: Message, session: AsyncSession, lang: str = "
     )
 
 
-@router.callback_query(F.data == "admin_categories_back")
+@router.callback_query(F.data == "admin_cats_back")
 async def categories_back(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
     repo = CategoryRepository(session)
     cats = await repo.get_all()
-    await callback.message.edit_text( # type: ignore
+    await safe_edit_text_or_caption(
+        callback,
         t("admin_categories_title", lang, count=len(cats)),
         reply_markup=category_list_keyboard(cats, lang=lang),
         parse_mode="Markdown",
@@ -52,7 +53,8 @@ async def category_detail(callback: CallbackQuery, session: AsyncSession, lang: 
         await callback.answer("Category not found.", show_alert=True)
         return
     status = "✅ Active" if cat.is_active else "❌ Inactive"
-    await callback.message.edit_text( # type: ignore
+    await safe_edit_text_or_caption(
+        callback,
         f"🗂 *{cat.name}*\nStatus: {status}",
         reply_markup=category_detail_keyboard(cat, lang=lang),
         parse_mode="Markdown"

@@ -49,7 +49,7 @@ for lang in languages:
 print("\n[3/5] Testing Keyboards generation for EN, AM, OM...")
 from keyboards.customers import customer_menu, customer_reorder_menu, order_summary_keyboard
 from keyboards.delivery import delivery_menu
-from keyboards.store_manager import store_manager_menu
+from keyboards.store_manager import store_manager_menu, hotel_admin_menu
 from keyboards.admin_menu import admin_main_menu
 from keyboards.language_keyboard import language_keyboard
 
@@ -57,6 +57,10 @@ for lang in languages:
     c_menu = customer_menu(lang)
     c_btns = [b.text for row in c_menu.keyboard for b in row]
     print(f"  ✅ customer_menu({lang}): {c_btns}")
+
+    h_menu = hotel_admin_menu(lang)
+    h_btns = [b.text for row in h_menu.keyboard for b in row]
+    print(f"  ✅ hotel_admin_menu({lang}): {h_btns}")
 
     d_menu = delivery_menu(lang)
     d_btns = [b.text for row in d_menu.keyboard for b in row]

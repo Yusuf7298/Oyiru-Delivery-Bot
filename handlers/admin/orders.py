@@ -64,12 +64,18 @@ async def new_orders(message: Message, session: AsyncSession, lang: str = "en") 
             try:
                 if order.file_type == "photo":
                     await message.answer_photo(photo=order.telegram_file_id, caption=text, reply_markup=kb, parse_mode="Markdown")
-                    sent = True
                 else:
                     await message.answer_document(document=order.telegram_file_id, caption=text, reply_markup=kb, parse_mode="Markdown")
-                    sent = True
+                sent = True
             except Exception as e:
-                logging.warning(f"Admin photo/doc via telegram_file_id failed: {e}")
+                try:
+                    if order.file_type == "photo":
+                        await message.answer_photo(photo=order.telegram_file_id, caption=text, reply_markup=kb)
+                    else:
+                        await message.answer_document(document=order.telegram_file_id, caption=text, reply_markup=kb)
+                    sent = True
+                except Exception:
+                    logging.warning(f"Admin photo/doc via telegram_file_id failed: {e}")
 
         if not sent and order.file_path:
             full_path = os.path.join(os.getcwd(), order.file_path) if not os.path.isabs(order.file_path) else order.file_path
@@ -78,20 +84,31 @@ async def new_orders(message: Message, session: AsyncSession, lang: str = "en") 
                 try:
                     if order.file_type == "photo":
                         await message.answer_photo(photo=file_input, caption=text, reply_markup=kb, parse_mode="Markdown")
-                        sent = True
                     else:
                         await message.answer_document(document=file_input, caption=text, reply_markup=kb, parse_mode="Markdown")
-                        sent = True
+                    sent = True
                 except Exception as e:
-                    logging.warning(f"Admin photo/doc via FSInputFile failed: {e}")
+                    try:
+                        if order.file_type == "photo":
+                            await message.answer_photo(photo=file_input, caption=text, reply_markup=kb)
+                        else:
+                            await message.answer_document(document=file_input, caption=text, reply_markup=kb)
+                        sent = True
+                    except Exception:
+                        logging.warning(f"Admin photo/doc via FSInputFile failed: {e}")
 
         if not sent:
-            await message.answer(text, reply_markup=kb, parse_mode="Markdown")
+            try:
+                await message.answer(text, reply_markup=kb, parse_mode="Markdown")
+            except Exception:
+                await message.answer(text, reply_markup=kb)
 
 
 from keyboards.delivery import delivery_menu
 from keyboards.store_manager import store_manager_menu
 from utils.i18n import t
+
+from services.notification_service import notify_user_approved, notify_user_rejected
 
 @router.callback_query(F.data.startswith("approve_user:"))
 async def approve_user(callback: CallbackQuery, session: AsyncSession) -> None:
@@ -103,25 +120,7 @@ async def approve_user(callback: CallbackQuery, session: AsyncSession) -> None:
         return
 
     await repo.set_active(user, True)
-    try:
-        user_lang = getattr(user, "language", "en") or "en"
-        role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
-        if role_val == "delivery":
-            menu = delivery_menu(user_lang)
-        elif role_val == "hotel":
-            menu = store_manager_menu()
-        elif role_val == "admin":
-            menu = admin_main_menu()
-        else:
-            menu = customer_menu(user_lang)
-
-        await callback.bot.send_message( # type: ignore
-            chat_id=user.telegram_id,
-            text=t("reg_success", user_lang, name=user.full_name),
-            reply_markup=menu,
-        )
-    except Exception as e:
-        logging.error(f"Failed to notify approved user {user.telegram_id}: {e}")
+    await notify_user_approved(callback.bot, user)
 
     await callback.message.edit_text( # type: ignore
         f"✅ Approved: *{user.full_name}*", parse_mode="Markdown"
@@ -141,19 +140,7 @@ async def reject_user(callback: CallbackQuery, session: AsyncSession) -> None:
     telegram_id = user.telegram_id
     full_name   = user.full_name
     await repo.delete(user)
-
-    try:
-        await callback.bot.send_message( # type: ignore
-            chat_id=telegram_id,
-            text=(
-                "❌ *Registration Rejected*\n\n"
-                "Your registration has been rejected by the administrator.\n"
-                "Please contact support if you believe this is an error."
-            ),
-            parse_mode="Markdown",
-        )
-    except Exception as e:
-        logging.error(f"Failed to notify rejected user {telegram_id}: {e}")
+    await notify_user_rejected(callback.bot, telegram_id, full_name=full_name)
 
     await callback.message.edit_text( # type: ignore
         f"❌ Rejected: *{full_name}*", parse_mode="Markdown"

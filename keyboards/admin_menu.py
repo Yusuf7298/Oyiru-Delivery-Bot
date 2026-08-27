@@ -121,11 +121,12 @@ def category_pick_keyboard(categories, prefix: str, lang: str = "en"):
 def user_section_keyboard(lang: str = "en"):
     builder = InlineKeyboardBuilder()
     builder.button(text=t("btn_customers", lang), callback_data="admin_users_list:customer:1")
-    builder.button(text=t("btn_store_managers", lang), callback_data="admin_users_list:hotel:1")
-    builder.button(text=t("btn_delivery_partners", lang), callback_data="admin_users_list:delivery:1")
+    builder.button(text=t("btn_hotel_admins", lang), callback_data="admin_users_list:hotel_admin:1")
+    builder.button(text=t("btn_store_managers", lang), callback_data="admin_users_list:store_manager:1")
+    builder.button(text=t("btn_drivers", lang), callback_data="admin_users_list:driver:1")
     builder.button(text=t("btn_admins", lang), callback_data="admin_users_list:admin:1")
     builder.button(text=t("btn_all_users", lang), callback_data="admin_users_list:all:1")
-    builder.adjust(2, 2, 1)
+    builder.adjust(2, 2, 2)
     return builder.as_markup()
 
 def user_detail_keyboard(user, back_role: str = "all", back_page: int = 1, lang: str = "en"):
@@ -145,11 +146,12 @@ def user_detail_keyboard(user, back_role: str = "all", back_page: int = 1, lang:
 def role_pick_keyboard(user_id: int, back_role: str = "all", back_page: int = 1, lang: str = "en"):
     builder = InlineKeyboardBuilder()
     builder.button(text=t("role_customer", lang), callback_data=f"admin_set_role:{user_id}:customer:{back_role}:{back_page}")
-    builder.button(text=t("role_store_manager", lang), callback_data=f"admin_set_role:{user_id}:hotel:{back_role}:{back_page}")
-    builder.button(text=t("role_delivery", lang), callback_data=f"admin_set_role:{user_id}:delivery:{back_role}:{back_page}")
+    builder.button(text=t("role_hotel_admin", lang), callback_data=f"admin_set_role:{user_id}:hotel_admin:{back_role}:{back_page}")
+    builder.button(text=t("role_store_manager", lang), callback_data=f"admin_set_role:{user_id}:store_manager:{back_role}:{back_page}")
+    builder.button(text=t("role_driver", lang), callback_data=f"admin_set_role:{user_id}:driver:{back_role}:{back_page}")
     builder.button(text=t("role_admin", lang), callback_data=f"admin_set_role:{user_id}:admin:{back_role}:{back_page}")
     builder.button(text=t("btn_cancel", lang), callback_data=f"admin_user_detail:{user_id}:{back_role}:{back_page}")
-    builder.adjust(2, 2, 1)
+    builder.adjust(2, 2, 1, 1)
     return builder.as_markup()
 
 def back_keyboard(callback_data: str, lang: str = "en"):

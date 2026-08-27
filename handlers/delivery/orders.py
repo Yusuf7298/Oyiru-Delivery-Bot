@@ -71,7 +71,14 @@ async def assigned_orders(message: Message, session: AsyncSession, lang: str = "
                         await message.answer_document(document=order.telegram_file_id, caption=card, reply_markup=kb, parse_mode="Markdown")
                     sent = True
                 except Exception as e:
-                    logger.warning(f"Driver order card via file_id failed: {e}")
+                    try:
+                        if order.file_type == "photo":
+                            await message.answer_photo(photo=order.telegram_file_id, caption=card, reply_markup=kb)
+                        else:
+                            await message.answer_document(document=order.telegram_file_id, caption=card, reply_markup=kb)
+                        sent = True
+                    except Exception:
+                        logger.warning(f"Driver order card via file_id failed: {e}")
             if not sent and order.file_path:
                 import os
                 from aiogram.types import FSInputFile
@@ -85,9 +92,20 @@ async def assigned_orders(message: Message, session: AsyncSession, lang: str = "
                             await message.answer_document(document=f, caption=card, reply_markup=kb, parse_mode="Markdown")
                         sent = True
                     except Exception as e:
-                        logger.warning(f"Driver order card via FSInputFile failed: {e}")
+                        try:
+                            f = FSInputFile(full_path)
+                            if order.file_type == "photo":
+                                await message.answer_photo(photo=f, caption=card, reply_markup=kb)
+                            else:
+                                await message.answer_document(document=f, caption=card, reply_markup=kb)
+                            sent = True
+                        except Exception:
+                            logger.warning(f"Driver order card via FSInputFile failed: {e}")
             if not sent:
-                await message.answer(card, reply_markup=kb, parse_mode="Markdown")
+                try:
+                    await message.answer(card, reply_markup=kb, parse_mode="Markdown")
+                except Exception:
+                    await message.answer(card, reply_markup=kb)
         else:
             await message.answer(card, reply_markup=kb, parse_mode="Markdown")
 
@@ -175,14 +193,17 @@ async def driver_profile(message: Message, session: AsyncSession, lang: str = "e
         await message.answer("❌ Profile not found.")
         return
 
-    await message.answer(
+    text = (
         f"{t('driver_profile_title', lang)}\n\n"
         f"📛 Name: {driver.full_name}\n"
         f"📞 Phone: {driver.phone or '—'}\n"
         f"🆔 Telegram ID: `{driver.telegram_id}`\n"
-        f"📌 Status: {'✅ Active' if driver.is_active else '❌ Inactive'}",
-        parse_mode="Markdown",
+        f"📌 Status: {'✅ Active' if driver.is_active else '❌ Inactive'}"
     )
+    try:
+        await message.answer(text, parse_mode="Markdown")
+    except Exception:
+        await message.answer(text)
 
 @router.callback_query(F.data.startswith("drv_accept:"))
 async def driver_accept(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):

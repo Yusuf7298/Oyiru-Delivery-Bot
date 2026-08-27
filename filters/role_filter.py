@@ -5,9 +5,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from config.settings import SUPER_ADMIN_IDS # type: ignore
 from database.repositories.user_repository import UserRepository
 
+ROLE_ALIASES = {
+    "hotel": {"hotel", "hotel_admin"},
+    "hotel_admin": {"hotel", "hotel_admin"},
+    "delivery": {"delivery", "driver"},
+    "driver": {"delivery", "driver"},
+    "store_manager": {"store_manager"},
+    "customer": {"customer"},
+    "admin": {"admin"},
+}
+
 class RoleFilter(BaseFilter):
     def __init__(self, allowed_roles: list[str]) -> None:
-        self.allowed_roles = allowed_roles
+        expanded = set()
+        for r in allowed_roles:
+            norm = r.lower().strip()
+            expanded.update(ROLE_ALIASES.get(norm, {norm}))
+        self.allowed_roles = expanded
 
     async def __call__(
         self,
@@ -25,20 +39,26 @@ class RoleFilter(BaseFilter):
             return False
         if not user.is_active:
             return False
-        return user.role in self.allowed_roles
+
+        user_role_str = user.role.value if hasattr(user.role, "value") else str(user.role)
+        return user_role_str.lower().strip() in self.allowed_roles
 
 
 class IsAdmin(RoleFilter):
     def __init__(self) -> None:
         super().__init__(["admin"])
 
+class IsHotelAdmin(RoleFilter):
+    def __init__(self) -> None:
+        super().__init__(["hotel_admin"])
+
 class IsStoreManager(RoleFilter):
     def __init__(self) -> None:
-        super().__init__(["hotel"])
+        super().__init__(["store_manager"])
 
 class IsDelivery(RoleFilter):
     def __init__(self) -> None:
-        super().__init__(["delivery"])
+        super().__init__(["driver"])
 
 class IsCustomer(RoleFilter):
     def __init__(self) -> None:
@@ -46,4 +66,5 @@ class IsCustomer(RoleFilter):
 
 class IsStoreManagerOrAdmin(RoleFilter):
     def __init__(self) -> None:
-        super().__init__(["hotel", "admin"])
+        super().__init__(["store_manager", "admin"])
+

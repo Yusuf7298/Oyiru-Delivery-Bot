@@ -5,9 +5,13 @@ from database.base import Base
 
 class UserRole(str, Enum):
     CUSTOMER = "customer"
-    HOTEL = "hotel"
-    DELIVERY = "delivery"
+    HOTEL_ADMIN = "hotel_admin"
+    STORE_MANAGER = "store_manager"
+    DRIVER = "driver"
     ADMIN = "admin"
+    # Legacy aliases
+    HOTEL = "hotel_admin"
+    DELIVERY = "driver"
 
 class User(Base):
     def __init__(
@@ -37,10 +41,16 @@ class User(Base):
         self.username = username
         self.phone = phone
         if isinstance(role, str):
-            try:
-                self.role = UserRole(role)
-            except ValueError:
-                self.role = role
+            role_norm = role.lower().strip()
+            if role_norm == "hotel":
+                self.role = UserRole.HOTEL_ADMIN
+            elif role_norm == "delivery":
+                self.role = UserRole.DRIVER
+            else:
+                try:
+                    self.role = UserRole(role_norm)
+                except ValueError:
+                    self.role = role
         else:
             self.role = role or UserRole.CUSTOMER
         self.hotel_id = hotel_id

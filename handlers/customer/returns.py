@@ -15,8 +15,8 @@ from keyboards.customers import customer_menu, customer_reorder_menu
 from filters.role_filter import RoleFilter
 
 router = Router()
-router.message.filter(RoleFilter(["customer"]))
-router.callback_query.filter(RoleFilter(["customer"]))
+router.message.filter(RoleFilter(["customer", "hotel"]))
+router.callback_query.filter(RoleFilter(["customer", "hotel"]))
 
 _RECENT_LIMIT = 10   
 def _order_picker_keyboard(orders: list):
@@ -176,12 +176,21 @@ async def _save_and_notify(message: Message, state: FSMContext,
     tid = telegram_id or (message.from_user.id if message.from_user else message.chat.id)
     user_repo = UserRepository(session)
     customer  = await user_repo.get_by_telegram_id(tid)
-    last      = await order_repo.get_last_order(customer.id) if customer else None
-    menu      = customer_reorder_menu() if last else customer_menu()
+    user_lang = getattr(customer, "language", "en") or "en"
+    role_val = customer.role.value if customer and hasattr(customer.role, "value") else (str(customer.role) if customer else "")
+    if role_val in ("hotel_admin", "hotel"):
+        from keyboards.store_manager import hotel_admin_menu
+        menu = hotel_admin_menu(user_lang)
+    elif role_val == "store_manager":
+        from keyboards.store_manager import store_manager_menu
+        menu = store_manager_menu(user_lang)
+    else:
+        last = await order_repo.get_last_order(customer.id) if customer else None
+        menu = customer_reorder_menu(user_lang) if last else customer_menu(user_lang)
 
     await message.answer(
-        "✅ Return report submitted.\n\n"
-        "Our team will review it and follow up shortly. Thank you.",
+        "✅ *Return Report Submitted!*\n\n"
+        "Your return details and photo proof have been directly forwarded to our Quality Control team for review.",
         reply_markup=menu,
         parse_mode="Markdown",
     )
@@ -193,8 +202,18 @@ async def cancel_return(callback: CallbackQuery, state: FSMContext, session: Asy
     user_repo = UserRepository(session)
     customer  = await user_repo.get_by_telegram_id(callback.from_user.id)
     order_repo = OrderRepository(session)
-    last = await order_repo.get_last_order(customer.id) if customer else None # type: ignore
-    menu = customer_reorder_menu() if last else customer_menu()
+    user_lang = getattr(customer, "language", "en") or "en"
+    role_val = customer.role.value if customer and hasattr(customer.role, "value") else (str(customer.role) if customer else "")
+    if role_val in ("hotel_admin", "hotel"):
+        from keyboards.store_manager import hotel_admin_menu
+        menu = hotel_admin_menu(user_lang)
+    elif role_val == "store_manager":
+        from keyboards.store_manager import store_manager_menu
+        menu = store_manager_menu(user_lang)
+    else:
+        last = await order_repo.get_last_order(customer.id) if customer else None # type: ignore
+        menu = customer_reorder_menu(user_lang) if last else customer_menu(user_lang)
+
     await callback.message.edit_text("❌ Return report cancelled.") # type: ignore
     await callback.message.answer("Choose an option:", reply_markup=menu) # type: ignore
     await callback.answer()

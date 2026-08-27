@@ -59,16 +59,22 @@ async def set_language(callback: CallbackQuery, session: Any = None, state: FSMC
     role_val = (user.role.value if hasattr(user.role, "value") else str(user.role)) if user else ("admin" if is_super_admin else "customer")
 
     if is_super_admin or (user and user.is_active):
-        if role_val == "delivery":
+        if role_val in ("driver", "delivery"):
             from keyboards.delivery import delivery_menu
             await callback.message.answer(
                 t("welcome_back", new_lang, name=user.full_name if user else "Driver"),
                 reply_markup=delivery_menu(new_lang),
             )
-        elif role_val == "hotel":
+        elif role_val in ("hotel_admin", "hotel"):
+            from keyboards.store_manager import hotel_admin_menu
+            await callback.message.answer(
+                t("welcome_back", new_lang, name=user.full_name if user else "Hotel Admin"),
+                reply_markup=hotel_admin_menu(new_lang),
+            )
+        elif role_val == "store_manager":
             from keyboards.store_manager import store_manager_menu
             await callback.message.answer(
-                t("welcome_back", new_lang, name=user.full_name if user else "Manager"),
+                t("welcome_back", new_lang, name=user.full_name if user else "Store Manager"),
                 reply_markup=store_manager_menu(new_lang),
             )
         elif role_val == "admin" or is_super_admin:

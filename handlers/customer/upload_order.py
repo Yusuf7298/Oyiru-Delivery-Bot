@@ -156,7 +156,14 @@ async def cancel_upload(message: Message, state: FSMContext, session: AsyncSessi
     user_repo = UserRepository(session)
     user = await user_repo.get_by_telegram_id(message.from_user.id if message.from_user else message.chat.id)
     role_val = user.role.value if user and hasattr(user.role, "value") else (str(user.role) if user else "")
-    menu = store_manager_menu(lang) if role_val == "hotel" else customer_menu(lang)
+    if role_val in ("hotel_admin", "hotel"):
+        from keyboards.store_manager import hotel_admin_menu
+        menu = hotel_admin_menu(lang)
+    elif role_val == "store_manager":
+        from keyboards.store_manager import store_manager_menu
+        menu = store_manager_menu(lang)
+    else:
+        menu = customer_menu(lang)
     await message.answer("❌ Upload cancelled.", reply_markup=menu)
 
 
@@ -290,12 +297,17 @@ async def submit_upload_order(callback: CallbackQuery, state: FSMContext, sessio
 
     last = await OrderRepository(session).get_last_order(customer.id)
     role_val = customer.role.value if hasattr(customer.role, "value") else str(customer.role)
-    if role_val == "hotel":
+    if role_val in ("hotel_admin", "hotel"):
+        from keyboards.store_manager import hotel_admin_menu
+        menu = hotel_admin_menu(lang)
+    elif role_val == "store_manager":
+        from keyboards.store_manager import store_manager_menu
         menu = store_manager_menu(lang)
     else:
         menu = customer_reorder_menu(lang) if last else customer_menu(lang)
     file_label = FILE_TYPE_LABELS.get(order.file_type or "", "📎 File")
 
+    status_val = order.status.value if hasattr(order.status, "value") else str(order.status)
     from utils.helpers import safe_edit_text_or_caption
     await safe_edit_text_or_caption(
         callback,
@@ -303,7 +315,7 @@ async def submit_upload_order(callback: CallbackQuery, state: FSMContext, sessio
         f"🆔 Order Number: `{order.order_number}`\n"
         f"🏨 Hotel: {customer.hotel.name if customer.hotel else '—'}\n"
         f"📁 File: {file_label} — `{order.original_filename or '—'}`\n"
-        f"📌 Status: {order.status.value}",
+        f"📌 Status: {status_val}",
         parse_mode="Markdown",
     )
     await callback.message.answer("Choose an option:", reply_markup=menu)

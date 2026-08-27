@@ -27,7 +27,15 @@ class UserRepository(BaseRepository):
         return users
 
     async def get_by_role(self, role: str) -> List[User]:
-        cursor = self.db["users"].find({"role": role}).sort("full_name", 1)
+        role_norm = role.lower().strip()
+        if role_norm in ("hotel_admin", "hotel"):
+            roles_filter = ["hotel_admin", "hotel"]
+        elif role_norm in ("driver", "delivery"):
+            roles_filter = ["driver", "delivery"]
+        else:
+            roles_filter = [role_norm]
+
+        cursor = self.db["users"].find({"role": {"$in": roles_filter}}).sort("full_name", 1)
         users = []
         async for doc in cursor:
             users.append(User.from_dict(doc))
@@ -62,7 +70,7 @@ class UserRepository(BaseRepository):
 
     async def get_delivery_partners(self) -> List[User]:
         cursor = self.db["users"].find({
-            "role": UserRole.DELIVERY.value,
+            "role": {"$in": ["driver", "delivery"]},
             "is_active": True
         }).sort("full_name", 1)
         users = []
@@ -97,8 +105,17 @@ class UserRepository(BaseRepository):
         return user
 
     async def get_active_by_roles(self, roles: list) -> List[User]:
+        expanded = []
+        for r in roles:
+            r_norm = r.lower().strip()
+            if r_norm in ("hotel", "hotel_admin"):
+                expanded.extend(["hotel", "hotel_admin"])
+            elif r_norm in ("delivery", "driver"):
+                expanded.extend(["delivery", "driver"])
+            else:
+                expanded.append(r_norm)
         cursor = self.db["users"].find({
-            "role": {"$in": roles},
+            "role": {"$in": list(set(expanded))},
             "is_active": True
         }).sort([("role", 1), ("full_name", 1)])
         users = []
@@ -108,7 +125,7 @@ class UserRepository(BaseRepository):
 
     async def get_claimed_hotel_ids(self) -> List[int]:
         cursor = self.db["users"].find({
-            "role": UserRole.HOTEL.value,
+            "role": {"$in": ["hotel", "hotel_admin"]},
             "hotel_id": {"$ne": None}
         })
         claimed_ids = []
@@ -120,7 +137,7 @@ class UserRepository(BaseRepository):
 
     async def get_hotel_admin(self, hotel_id: int) -> Optional[User]:
         doc = await self.db["users"].find_one({
-            "role": UserRole.HOTEL.value,
+            "role": {"$in": ["hotel", "hotel_admin"]},
             "hotel_id": hotel_id
         })
         if not doc:

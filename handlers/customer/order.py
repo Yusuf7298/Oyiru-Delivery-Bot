@@ -355,16 +355,23 @@ async def submit_order(callback: CallbackQuery, state: FSMContext, session: Asyn
         logger.error(f"Notification failed for {order.order_number}: {exc}")
     last = await OrderRepository(session).get_last_order(customer.id)
     role_val = customer.role.value if hasattr(customer.role, "value") else str(customer.role)
-    if role_val == "hotel":
+    if role_val in ("hotel_admin", "hotel"):
+        from keyboards.store_manager import hotel_admin_menu
+        menu = hotel_admin_menu(lang)
+    elif role_val == "store_manager":
+        from keyboards.store_manager import store_manager_menu
         menu = store_manager_menu(lang)
     else:
         menu = customer_reorder_menu(lang) if last else customer_menu(lang)
 
-    await callback.message.edit_text(
+    status_val = order.status.value if hasattr(order.status, "value") else str(order.status)
+    from utils.helpers import safe_edit_text_or_caption
+    await safe_edit_text_or_caption(
+        callback,
         f"✅ *Order Submitted!*\n\n"
         f"🆔 Order Number: `{order.order_number}`\n"
         f"🏨 Hotel: {customer.hotel.name if customer.hotel else '—'}\n"
-        f"📌 Status: {order.status.value}",
+        f"📌 Status: {status_val}",
         parse_mode="Markdown",
     )
     await callback.message.answer("Choose an option:", reply_markup=menu)
@@ -378,11 +385,16 @@ async def cancel_order(callback: CallbackQuery, state: FSMContext, session: Asyn
     order_repo = OrderRepository(session)
     last = await order_repo.get_last_order(customer.id) if customer else None
     role_val = customer.role.value if customer and hasattr(customer.role, "value") else (str(customer.role) if customer else "")
-    if role_val == "hotel":
+    if role_val in ("hotel_admin", "hotel"):
+        from keyboards.store_manager import hotel_admin_menu
+        menu = hotel_admin_menu(lang)
+    elif role_val == "store_manager":
+        from keyboards.store_manager import store_manager_menu
         menu = store_manager_menu(lang)
     else:
         menu = customer_reorder_menu(lang) if last else customer_menu(lang)
-    await callback.message.edit_text("❌ Order cancelled.")
+    from utils.helpers import safe_edit_text_or_caption
+    await safe_edit_text_or_caption(callback, "❌ Order cancelled.")
     await callback.message.answer("Main menu:", reply_markup=menu)
     await callback.answer()
 
@@ -457,15 +469,22 @@ async def customer_profile(message: Message, session: AsyncSession, lang: str = 
     hotel_name = user.hotel.name if user.hotel else "N/A"
     lang_name = "English" if user.language == "en" else ("አማርኛ" if user.language == "am" else "Afaan Oromoo")
     
+    role_val = user.role.value if hasattr(user.role, 'value') else str(user.role)
+    from handlers.admin.users import ROLE_LABELS
+    role_label = ROLE_LABELS.get(role_val, role_val.replace("_", " ").title())
+    
     profile_text = (
         f"👤 *Profile*\n\n"
         f"👤 *Name*: {user.full_name}\n"
         f"📱 *Phone*: {user.phone or 'N/A'}\n"
         f"🏨 *Hotel*: {hotel_name}\n"
         f"🌐 *Language*: {lang_name}\n"
-        f"📌 *Role*: {user.role.value if hasattr(user.role, 'value') else user.role}"
+        f"📌 *Role*: {role_label}"
     )
-    await message.answer(profile_text, parse_mode="Markdown")
+    try:
+        await message.answer(profile_text, parse_mode="Markdown")
+    except Exception:
+        await message.answer(profile_text)
 
 @router.message(F.text.in_(["❓ Help", "❓ እርዳታ", "❓ Gargaarsa"]))
 async def customer_help(message: Message, lang: str = "en"):

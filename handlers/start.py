@@ -11,7 +11,7 @@ from database.repositories.user_repository import UserRepository
 from database.repositories.order_repository import OrderRepository
 from keyboards.customer.hotel_keyboard import hotels_keyboard
 from keyboards.customers import customer_menu, customer_reorder_menu
-from keyboards.store_manager import store_manager_menu
+from keyboards.store_manager import hotel_admin_menu, store_manager_menu
 from keyboards.admin_menu import admin_main_menu
 from keyboards.delivery import delivery_menu
 from utils.i18n import t
@@ -88,7 +88,9 @@ async def _show_user_menu(message: Message, user, session: AsyncSession, lang: s
         await message.answer(t("reg_pending", user_lang))
         return
 
-    if user.role == UserRole.CUSTOMER:
+    role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
+
+    if role_val == "customer":
         order_repo = OrderRepository(session)
         last_order = await order_repo.get_last_order(user.id)
         if last_order:
@@ -102,21 +104,28 @@ async def _show_user_menu(message: Message, user, session: AsyncSession, lang: s
                 reply_markup=customer_menu(user_lang),
             )
 
-    elif user.role == UserRole.HOTEL:
+    elif role_val in ("hotel_admin", "hotel"):
         hotel_name = user.hotel.name if getattr(user, "hotel", None) else "Hotel"
         await message.answer(
             t("welcome_hotel_admin", user_lang, name=user.full_name, hotel_name=hotel_name),
+            reply_markup=hotel_admin_menu(user_lang),
+            parse_mode="Markdown"
+        )
+
+    elif role_val == "store_manager":
+        await message.answer(
+            f"🏪 *Welcome Store Manager, {user.full_name}!*",
             reply_markup=store_manager_menu(user_lang),
             parse_mode="Markdown"
         )
 
-    elif user.role == UserRole.DELIVERY:
+    elif role_val in ("driver", "delivery"):
         await message.answer(
             t("welcome_user", user_lang, name=user.full_name),
             reply_markup=delivery_menu(user_lang),
         )
 
-    elif user.role == UserRole.ADMIN:
+    elif role_val == "admin":
         await message.answer(
             t("welcome_admin", user_lang, name=user.full_name),
             reply_markup=admin_main_menu(user_lang),
@@ -124,6 +133,6 @@ async def _show_user_menu(message: Message, user, session: AsyncSession, lang: s
 
     else:
         await message.answer(
-            t("welcome_user", user_lang, name=user.full_name)
+            t("welcome_user", user_lang, name=user.full_name),
+            reply_markup=customer_menu(user_lang),
         )
-

@@ -27,6 +27,18 @@ async def hotel_selected(
         await callback.answer()
         return
 
+    # Check if hotel already has a registered hotel admin
+    claimed_ids = await user_repo.get_claimed_hotel_ids()
+    if hotel_id in claimed_ids:
+        await callback.message.edit_text( # type: ignore
+            "⚠️ *Hotel Already Claimed*\n\n"
+            "This hotel already has a registered Hotel Administrator.\n\n"
+            "If you are an ordering staff member of this hotel, please ask your Hotel Administrator for the staff invite link to register.",
+            parse_mode="Markdown",
+        )
+        await callback.answer("Hotel already has an administrator.", show_alert=True)
+        return
+
     # New user claiming unclaimed hotel — store hotel and mark as Hotel Admin
     await state.update_data(hotel_id=hotel_id, is_hotel_admin=True, is_staff_invite=False)
     await callback.message.edit_text( # type: ignore

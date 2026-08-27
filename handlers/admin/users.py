@@ -15,25 +15,33 @@ router.message.filter(RoleFilter(["admin"]))
 router.callback_query.filter(RoleFilter(["admin"]))
 
 ROLE_LABELS = {
-    "customer":  "👤 Customer",
-    "hotel":     "🏪 Store Manager",
-    "delivery":  "🚚 Delivery Partner",
-    "admin":     "👑 Admin",
+    "customer":      "👤 Customer",
+    "hotel_admin":   "🏨 Hotel Admin",
+    "hotel":         "🏨 Hotel Admin",
+    "store_manager": "🏪 Store Manager",
+    "driver":        "🚚 Driver",
+    "delivery":      "🚚 Driver",
+    "admin":         "👑 Admin",
 }
 
 ROLE_SECTION_LABELS = {
-    "customer":  "👤 Customers",
-    "hotel":     "🏪 Store Managers",
-    "delivery":  "🚚 Delivery Partners",
-    "admin":     "👑 Admins",
-    "all":       "📋 All Registered Users",
+    "customer":      "👤 Customers",
+    "hotel_admin":   "🏨 Hotel Admins",
+    "store_manager": "🏪 Store Managers",
+    "driver":        "🚚 Drivers",
+    "delivery":      "🚚 Drivers",
+    "admin":         "👑 Admins",
+    "all":           "📋 All Registered Users",
 }
 
 ROLE_SYMBOLS = {
-    "customer":  "👤",
-    "hotel":     "🏪",
-    "delivery":  "🚚",
-    "admin":     "👑",
+    "customer":      "👤",
+    "hotel_admin":   "🏨",
+    "hotel":         "🏨",
+    "store_manager": "🏪",
+    "driver":        "🚚",
+    "delivery":      "🚚",
+    "admin":         "👑",
 }
 
 
@@ -50,9 +58,12 @@ async def users_menu(message: Message, lang: str = "en"):
     )
 
 
+from utils.helpers import safe_edit_text_or_caption
+
 @router.callback_query(F.data == "admin_users_back")
 async def users_back(callback: CallbackQuery, lang: str = "en"):
-    await callback.message.edit_text(  # type: ignore
+    await safe_edit_text_or_caption(
+        callback,
         t("admin_users_title", lang),
         reply_markup=user_section_keyboard(lang=lang),
         parse_mode="Markdown",
@@ -75,10 +86,11 @@ async def list_users_paginated(callback: CallbackQuery, session: AsyncSession, l
     label = ROLE_SECTION_LABELS.get(role_key, "👥 Users")
 
     if not users:
-        await callback.message.edit_text(  # type: ignore
-            f"👥 *{label}*\n\nNo users found in this section.",
+        await safe_edit_text_or_caption(
+            callback,
+            f"👥 {label}\n\nNo users found in this section.",
             reply_markup=back_keyboard("admin_users_back", lang=lang),
-            parse_mode="Markdown",
+            parse_mode=None,
         )
         await callback.answer()
         return
@@ -122,7 +134,8 @@ async def list_users_paginated(callback: CallbackQuery, session: AsyncSession, l
         InlineKeyboardButton(text=t("btn_back", lang), callback_data="admin_users_back")
     )
 
-    await callback.message.edit_text(  # type: ignore
+    await safe_edit_text_or_caption(
+        callback,
         f"👥 *{label}* ({total_users} total)\n"
         f"✅ = Active  ❌ = Inactive\n\n"
         "Tap any user to manage their role or status:",
@@ -140,12 +153,12 @@ async def list_customers_legacy(callback: CallbackQuery, session: AsyncSession, 
 
 @router.callback_query(F.data == "admin_users_store_managers")
 async def list_store_managers_legacy(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
-    callback.data = "admin_users_list:hotel:1"
+    callback.data = "admin_users_list:store_manager:1"
     await list_users_paginated(callback, session, lang=lang)
 
 @router.callback_query(F.data == "admin_users_delivery")
 async def list_delivery_legacy(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
-    callback.data = "admin_users_list:delivery:1"
+    callback.data = "admin_users_list:driver:1"
     await list_users_paginated(callback, session, lang=lang)
 
 @router.callback_query(F.data == "admin_users_admins")
@@ -184,7 +197,8 @@ async def user_detail(callback: CallbackQuery, session: AsyncSession, lang: str 
         f"📌 Status: {status}"
     )
 
-    await callback.message.edit_text(  # type: ignore
+    await safe_edit_text_or_caption(
+        callback,
         text,
         reply_markup=user_detail_keyboard(user, back_role=back_role, back_page=back_page, lang=lang),
         parse_mode="Markdown",
@@ -226,6 +240,8 @@ async def user_activate(callback: CallbackQuery, session: AsyncSession, lang: st
         return
 
     await repo.set_active(user, True)
+    from services.notification_service import notify_user_approved
+    await notify_user_approved(callback.bot, user)
     await callback.answer("🟢 User activated.", show_alert=True)
     await callback.message.edit_reply_markup(  # type: ignore
         reply_markup=user_detail_keyboard(user, back_role=back_role, back_page=back_page, lang=lang)
@@ -246,7 +262,8 @@ async def user_change_role_prompt(callback: CallbackQuery, session: AsyncSession
         return
 
     current_role_label = ROLE_LABELS.get(user.role, user.role)
-    await callback.message.edit_text(  # type: ignore
+    await safe_edit_text_or_caption(
+        callback,
         f"🔑 *Change Role for {user.full_name}*\n"
         f"Current role: *{current_role_label}*\n\n"
         "Select the new role:",
@@ -270,6 +287,16 @@ async def user_set_role(callback: CallbackQuery, session: AsyncSession, lang: st
         await callback.answer("Not found.", show_alert=True)
         return
 
+    if new_role in ("hotel_admin", "hotel") and user.hotel_id:
+        existing_admin = await repo.get_hotel_admin(user.hotel_id)
+        if existing_admin and existing_admin.id != user.id and existing_admin.is_active:
+            hotel_name = user.hotel.name if user.hotel else "this hotel"
+            await callback.answer(
+                f"⚠️ {hotel_name} already has a Hotel Admin ({existing_admin.full_name}). Deactivate or change that admin's role first.",
+                show_alert=True
+            )
+            return
+
     await repo.set_role(user, new_role)
     role_label = ROLE_LABELS.get(new_role, new_role)
     await callback.answer(f"✅ Role updated to {role_label}", show_alert=True)
@@ -278,12 +305,14 @@ async def user_set_role(callback: CallbackQuery, session: AsyncSession, lang: st
     try:
         from keyboards.customers import customer_menu
         from keyboards.delivery import delivery_menu
-        from keyboards.store_manager import store_manager_menu
+        from keyboards.store_manager import store_manager_menu, hotel_admin_menu
         from keyboards.admin_menu import admin_main_menu
         user_lang = getattr(user, "language", "en") or "en"
-        if new_role == "delivery":
+        if new_role in ("driver", "delivery"):
             u_menu = delivery_menu(user_lang)
-        elif new_role == "hotel":
+        elif new_role in ("hotel_admin", "hotel"):
+            u_menu = hotel_admin_menu(user_lang)
+        elif new_role == "store_manager":
             u_menu = store_manager_menu(user_lang)
         elif new_role == "admin":
             u_menu = admin_main_menu(user_lang)
@@ -321,7 +350,8 @@ async def user_set_role(callback: CallbackQuery, session: AsyncSession, lang: st
         f"📌 Status: {status}"
     )
 
-    await callback.message.edit_text(  # type: ignore
+    await safe_edit_text_or_caption(
+        callback,
         text,
         reply_markup=user_detail_keyboard(user, back_role=back_role, back_page=back_page, lang=lang),
         parse_mode="Markdown",

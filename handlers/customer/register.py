@@ -142,7 +142,20 @@ async def handle_phone(message: Message, state: FSMContext, session: AsyncSessio
         return
 
     is_hotel_admin = data.get("is_hotel_admin", False)
-    user_role = "hotel" if is_hotel_admin else "customer"
+    if is_hotel_admin:
+        claimed_ids = await user_repo.get_claimed_hotel_ids()
+        if hotel_id in claimed_ids:
+            await state.clear()
+            await message.answer(
+                "⚠️ *Hotel Already Claimed*\n\n"
+                "This hotel has already been claimed by a Hotel Administrator.\n"
+                "To register as staff for this hotel, please ask your Hotel Administrator for your hotel staff invite link.",
+                reply_markup=ReplyKeyboardRemove(),
+                parse_mode="Markdown"
+            )
+            return
+
+    user_role = "hotel_admin" if is_hotel_admin else "customer"
     role_label = "Hotel Administrator" if is_hotel_admin else "Hotel Ordering Staff"
 
     auth = AuthService(user_repo)
@@ -174,7 +187,7 @@ async def handle_phone(message: Message, state: FSMContext, session: AsyncSessio
 
     import html
     name_clean = html.escape(str(data.get("full_name", "")))
-    phone_clean = html.escape(str(phone))
+    phone_clean = html.escape(str(format_phone_display(normalized_phone)))
     hotel_clean = html.escape(str(hotel_name))
     uname = html.escape(str(message.from_user.username or "none")) # type: ignore
 
@@ -188,16 +201,20 @@ async def handle_phone(message: Message, state: FSMContext, session: AsyncSessio
             f"🆔 <b>Telegram ID</b>: <code>{message.from_user.id}</code>\n" # type: ignore
             f"🏷 <b>Username</b>: @{uname}"
         )
-        for admin_id in SUPER_ADMIN_IDS:
+        from services.notification_service import _extract_chat_ids
+        for admin_cid in _extract_chat_ids(SUPER_ADMIN_IDS):
             try:
                 await message.bot.send_message( # type: ignore
-                    chat_id=int(admin_id),
+                    chat_id=admin_cid,
                     text=notification_text,
                     reply_markup=admin_keyboard,
                     parse_mode="HTML",
                 )
             except Exception as e:
-                logging.error(f"Failed to notify admin {admin_id} of registration: {e}")
+                if "chat not found" in str(e).lower():
+                    logging.info(f"Admin {admin_cid} has not started the bot yet.")
+                else:
+                    logging.warning(f"Failed to notify admin {admin_cid} of registration: {e}")
 
         # If a staff member registered under a hotel, notify that hotel's Hotel Admin
         if not is_hotel_admin and user.hotel_id:

@@ -7,6 +7,7 @@ from database.models.order import OrderStatus
 try:
     from config.settings import ( # type: ignore
         ADMIN_ID,
+        SUPER_ADMIN_IDS,
         ORDERS_GROUP_ID,
         STORE_MANAGERS_GROUP_ID,
         INVENTORY_GROUP_ID,
@@ -16,6 +17,7 @@ try:
     )
 except Exception:
     ADMIN_ID                 = os.getenv("ADMIN_ID", "8223004316")
+    SUPER_ADMIN_IDS          = {str(ADMIN_ID).strip(), "7269164159"}
     ORDERS_GROUP_ID          = os.getenv("ORDERS_GROUP_ID",          ADMIN_ID)
     STORE_MANAGERS_GROUP_ID  = os.getenv("STORE_MANAGERS_GROUP_ID",  ADMIN_ID)
     INVENTORY_GROUP_ID       = os.getenv("INVENTORY_GROUP_ID",       ADMIN_ID)
@@ -25,6 +27,7 @@ except Exception:
 
 def _now() -> str:
     return datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+
 def _products_block(order) -> str:
     if getattr(order, "file_path", None) or getattr(order, "telegram_file_id", None):
         fname = getattr(order, "original_filename", None) or "uploaded file"
@@ -60,7 +63,8 @@ def _order_detail_block(order, customer=None) -> str:
     except Exception:
         cust = "—"
 
-    status_val = order.status.value if hasattr(order.status, "value") else str(order.status)
+    status_obj = getattr(order, "status", None)
+    status_val = status_obj.value if hasattr(status_obj, "value") else str(status_obj or "Submitted")
     dp = getattr(order, "delivery_partner", None)
     dname = getattr(order, "driver_name", None) or (dp.full_name if dp else None)
     dphone = (dp.phone if dp and getattr(dp, "phone", None) else None)
@@ -151,6 +155,16 @@ async def _send_order_media(
                         await bot.send_message(chat_id=cid, text=overflow_text, **kwargs)
                     continue
                 except Exception as exc_tfid:
+                    err_s = str(exc_tfid).lower()
+                    if "can't parse entities" in err_s or "entity" in err_s:
+                        # Retry without parse_mode
+                        kw_no_parse = dict(kwargs)
+                        kw_no_parse.pop("parse_mode", None)
+                        if is_photo:
+                            await bot.send_photo(chat_id=cid, photo=telegram_file_id, caption=safe_caption, **kw_no_parse)
+                        else:
+                            await bot.send_document(chat_id=cid, document=telegram_file_id, caption=safe_caption, **kw_no_parse)
+                        continue
                     logging.debug(f"send_photo/document with telegram_file_id to {cid} failed: {exc_tfid}. Trying local file_path.")
 
             # 2. Try sending via local file_path
@@ -173,10 +187,28 @@ async def _send_order_media(
                             await bot.send_message(chat_id=cid, text=overflow_text, **kwargs)
                         continue
                     except Exception as exc_fp:
+                        err_s = str(exc_fp).lower()
+                        if "can't parse entities" in err_s or "entity" in err_s:
+                            kw_no_parse = dict(kwargs)
+                            kw_no_parse.pop("parse_mode", None)
+                            if is_photo:
+                                await bot.send_photo(chat_id=cid, photo=file_input, caption=safe_caption, **kw_no_parse)
+                            else:
+                                await bot.send_document(chat_id=cid, document=file_input, caption=safe_caption, **kw_no_parse)
+                            continue
                         logging.debug(f"send_photo/document with FSInputFile to {cid} failed: {exc_fp}. Fallback to text.")
 
             # 3. Fallback to text message if media could not be sent
-            await bot.send_message(chat_id=cid, text=caption, **kwargs)
+            try:
+                await bot.send_message(chat_id=cid, text=caption, **kwargs)
+            except Exception as e_txt:
+                err_s = str(e_txt).lower()
+                if "can't parse entities" in err_s or "entity" in err_s:
+                    kw_no_parse = dict(kwargs)
+                    kw_no_parse.pop("parse_mode", None)
+                    await bot.send_message(chat_id=cid, text=caption, **kw_no_parse)
+                else:
+                    raise
         except Exception as e:
             err_msg = str(e)
             if "chat not found" in err_msg.lower():
@@ -196,6 +228,14 @@ async def _send(bot: Bot, chat_id, text: str, **kwargs):
             await bot.send_message(chat_id=cid, text=text, **kwargs)
         except Exception as e:
             err_msg = str(e)
+            if "can't parse entities" in err_msg.lower() or "entity" in err_msg.lower():
+                try:
+                    kw = dict(kwargs)
+                    kw.pop("parse_mode", None)
+                    await bot.send_message(chat_id=cid, text=text, **kw)
+                    continue
+                except Exception as e2:
+                    err_msg = str(e2)
             if "chat not found" in err_msg.lower():
                 logging.info(f"Notification skipped for chat {cid} (bot not in chat or channel not created yet).")
             elif "blocked by the user" in err_msg.lower():
@@ -233,6 +273,7 @@ async def notify_new_order(bot: Bot, order, customer):
         + _order_detail_block(order, customer)
     )
     targets = {
+        *SUPER_ADMIN_IDS,
         ADMIN_ID,
         ORDERS_GROUP_ID,
         STORE_MANAGERS_GROUP_ID,
@@ -249,6 +290,7 @@ async def notify_new_order(bot: Bot, order, customer):
     )
 
 notify_admin_new_order = notify_new_order
+
 async def notify_driver_assigned(bot: Bot, order, driver_telegram_id: int, driver_name: str):
     caption = (
         f"📦 New Delivery Assigned\n\n"
@@ -268,6 +310,7 @@ async def notify_driver_assigned(bot: Bot, order, driver_telegram_id: int, drive
         file_type=getattr(order, "file_type", None),
         parse_mode="Markdown",
     )
+
 from utils.i18n import t
 
 _STATUS_KEY = {
@@ -284,11 +327,27 @@ async def notify_customer_status_update(bot: Bot, order, customer_telegram_id: i
     if getattr(order, "customer", None) and getattr(order.customer, "language", None):
         lang = order.customer.language
 
-    status_key = _STATUS_KEY.get(order.status)
+    status_obj = getattr(order, "status", None)
+    if hasattr(status_obj, "value"):
+        status_val = status_obj.value
+    else:
+        status_val = str(status_obj or "Updated")
+
+    status_str_lower = status_val.lower().replace(" ", "_")
+    status_key = None
+    for enum_status, k in _STATUS_KEY.items():
+        if (
+            status_obj == enum_status
+            or enum_status.value.lower() == status_val.lower()
+            or enum_status.name.lower() == status_str_lower
+        ):
+            status_key = k
+            break
+
     if status_key:
         status_msg = t(status_key, lang)
     else:
-        status_msg = f"Your order status: {order.status.value}"
+        status_msg = f"Your order status: {status_val}"
 
     driver_info = ""
     dp = getattr(order, "delivery_partner", None)
@@ -299,18 +358,24 @@ async def notify_customer_status_update(bot: Bot, order, customer_telegram_id: i
     if dphone:
         driver_info += f"\n📞 Driver Phone: `{dphone}`"
 
+    hotel_name = order.hotel.name if getattr(order, "hotel", None) else "—"
+
     text = (
         f"🔔 Order Update\n\n"
         f"🆔 Order: `{order.order_number}`\n"
-        f"🏨 Hotel: {order.hotel.name if order.hotel else '—'}\n"
-        f"📌 Status: {order.status.value}"
+        f"🏨 Hotel: {hotel_name}\n"
+        f"📌 Status: {status_val}"
         f"{driver_info}\n"
         f"⏰ Time: {_now()}\n\n"
         f"{status_msg}"
     )
 
     reply_markup = None
-    if order.status == OrderStatus.DELIVERED:
+    is_delivered = (
+        status_obj == OrderStatus.DELIVERED
+        or status_val.lower() in ("delivered", "status_delivered")
+    )
+    if is_delivered:
         text += "\n\n⭐ Please rate your delivery experience:"
         reply_markup = InlineKeyboardMarkup(
             inline_keyboard=[[
@@ -325,7 +390,13 @@ async def notify_customer_status_update(bot: Bot, order, customer_telegram_id: i
             "✅ Order Delivered\n\n"
             + _order_detail_block(order)
         )
-        targets = {ORDERS_GROUP_ID, STORE_MANAGERS_GROUP_ID, SALES_MANAGERS_GROUP_ID}
+        targets = {
+            *SUPER_ADMIN_IDS,
+            ADMIN_ID,
+            ORDERS_GROUP_ID,
+            STORE_MANAGERS_GROUP_ID,
+            SALES_MANAGERS_GROUP_ID
+        }
         await _broadcast_order(
             bot,
             targets,
@@ -339,24 +410,68 @@ async def notify_customer_status_update(bot: Bot, order, customer_telegram_id: i
     await _send(bot, customer_telegram_id, text, parse_mode="Markdown", reply_markup=reply_markup)
 
 async def notify_customer_rejected(bot: Bot, order, customer_telegram_id: int, reason: str):
+    status_obj = getattr(order, "status", None)
+    status_val = status_obj.value if hasattr(status_obj, "value") else str(status_obj or "Cancelled")
+    hotel_name = order.hotel.name if getattr(order, "hotel", None) else "—"
     text = (
         f"❌ Order Rejected\n\n"
         f"🆔 Order: `{order.order_number}`\n"
-        f"🏨 Hotel: {order.hotel.name if order.hotel else '—'}\n"
-        f"📌 Status: {order.status.value}\n"
+        f"🏨 Hotel: {hotel_name}\n"
+        f"📌 Status: {status_val}\n"
         f"⏰ Time: {_now()}\n\n"
         f"📋 Reason: {reason}"
     )
     await _send(bot, customer_telegram_id, text, parse_mode="Markdown")
+
+async def notify_user_approved(bot: Bot, user):
+    """Notify a user that their registration/account has been approved."""
+    try:
+        user_lang = getattr(user, "language", "en") or "en"
+        role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
+        if role_val in ("driver", "delivery"):
+            from keyboards.delivery import delivery_menu
+            menu = delivery_menu(user_lang)
+        elif role_val in ("hotel_admin", "hotel"):
+            from keyboards.store_manager import hotel_admin_menu
+            menu = hotel_admin_menu(user_lang)
+        elif role_val == "store_manager":
+            from keyboards.store_manager import store_manager_menu
+            menu = store_manager_menu(user_lang)
+        elif role_val == "admin":
+            from keyboards.admin_menu import admin_main_menu
+            menu = admin_main_menu(user_lang)
+        else:
+            from keyboards.customers import customer_menu
+            menu = customer_menu(user_lang)
+
+        msg_text = t("reg_success", user_lang, name=user.full_name)
+        await _send(bot, user.telegram_id, msg_text, reply_markup=menu)
+    except Exception as e:
+        logging.error(f"Failed to notify approved user {getattr(user, 'telegram_id', 'unknown')}: {e}")
+
+async def notify_user_rejected(bot: Bot, telegram_id: int, full_name: str = "", reason: str = None):
+    """Notify a user that their registration has been rejected."""
+    try:
+        reason_str = f"\n\n📋 Reason: {reason}" if reason else ""
+        text = (
+            "❌ *Registration Rejected*\n\n"
+            "Your registration has been rejected by the administrator.\n"
+            "Please contact support if you believe this is an error."
+            + reason_str
+        )
+        await _send(bot, telegram_id, text, parse_mode="Markdown")
+    except Exception as e:
+        logging.error(f"Failed to notify rejected user {telegram_id}: {e}")
 
 async def notify_sales_managers(bot: Bot, order, action: str):
     text = (
         f"📊 Sales Monitor — {action}\n\n"
         + _order_detail_block(order)
     )
+    targets = {*SUPER_ADMIN_IDS, ADMIN_ID, SALES_MANAGERS_GROUP_ID}
     await _broadcast_order(
         bot,
-        {SALES_MANAGERS_GROUP_ID, ADMIN_ID},
+        targets,
         text,
         telegram_file_id=getattr(order, "telegram_file_id", None),
         file_path=getattr(order, "file_path", None),
@@ -366,12 +481,15 @@ async def notify_sales_managers(bot: Bot, order, action: str):
 
 async def notify_operations(bot: Bot, order, rating: int, feedback: str = None): # type: ignore
     stars = "⭐" * rating + "☆" * (5 - rating)
-    driver_line = f"\n🚗 Driver: {order.driver_name}" if order.driver_name else ""
+    driver_name = getattr(order, "driver_name", None)
+    driver_line = f"\n🚗 Driver: {driver_name}" if driver_name else ""
+    hotel_name = order.hotel.name if getattr(order, "hotel", None) else "—"
+    cust_name = order.customer.full_name if getattr(order, "customer", None) else "—"
     text = (
         f"📋 Customer Feedback Report\n\n"
         f"🆔 Order: `{order.order_number}`\n"
-        f"🏨 Hotel: {order.hotel.name if order.hotel else '—'}\n"
-        f"👤 Customer: {order.customer.full_name if order.customer else '—'}"
+        f"🏨 Hotel: {hotel_name}\n"
+        f"👤 Customer: {cust_name}"
         f"{driver_line}\n"
         f"⏰ Time: {_now()}\n\n"
         f"⭐ Rating: {stars}  ({rating}/5)\n"
@@ -379,22 +497,33 @@ async def notify_operations(bot: Bot, order, rating: int, feedback: str = None):
     if feedback:
         text += f"💬 Feedback: {feedback}\n"
 
-    await _broadcast(bot, {QUALITY_CONTROL_GROUP_ID, OPERATIONS_GROUP_ID}, text, parse_mode="Markdown")
+    targets = {*SUPER_ADMIN_IDS, ADMIN_ID, QUALITY_CONTROL_GROUP_ID, OPERATIONS_GROUP_ID}
+    await _broadcast(bot, targets, text, parse_mode="Markdown")
 
 
 async def notify_returned_products(bot: Bot, order, description: str, photo_file_id: str = None): # type: ignore
-    driver_line = f"\n🚗 Driver: {order.driver_name}" if order.driver_name else ""
+    driver_name = getattr(order, "driver_name", None)
+    dp = getattr(order, "delivery_partner", None)
+    if not driver_name and dp:
+        driver_name = dp.full_name
+    driver_phone = getattr(order, "driver_phone", None) or (dp.phone if dp else None)
+    driver_line = f"\n🚗 Driver: {driver_name}" if driver_name else ""
+    if driver_phone:
+        driver_line += f" (`{driver_phone}`)"
+
+    hotel_name = order.hotel.name if getattr(order, "hotel", None) else "—"
+    cust_name = order.customer.full_name if getattr(order, "customer", None) else "—"
     text = (
-        f"🔄 Returned Products Report\n\n"
+        f"🔄 *Returned Products Report*\n\n"
         f"🆔 Order: `{order.order_number}`\n"
-        f"🏨 Hotel: {order.hotel.name if order.hotel else '—'}\n"
-        f"👤 Customer: {order.customer.full_name if order.customer else '—'}"
+        f"🏨 Hotel: {hotel_name}\n"
+        f"👤 Customer: {cust_name}"
         f"{driver_line}\n"
         f"⏰ Time: {_now()}\n\n"
         f"📦 Returned Items:\n{description}"
     )
 
-    targets = _extract_chat_ids({QUALITY_CONTROL_GROUP_ID, ADMIN_ID})
+    targets = _extract_chat_ids({*SUPER_ADMIN_IDS, ADMIN_ID, QUALITY_CONTROL_GROUP_ID})
     for cid in targets:
         if photo_file_id:
             try:
@@ -404,25 +533,75 @@ async def notify_returned_products(bot: Bot, order, description: str, photo_file
                     caption=text,
                     parse_mode="Markdown",
                 )
+                continue
             except Exception as e:
-                logging.info(f"QC photo to {cid} skipped or failed: {e}")
-                await _send(bot, cid, text, parse_mode="Markdown")
-        else:
-            await _send(bot, cid, text, parse_mode="Markdown")
+                err_s = str(e).lower()
+                if "can't parse entities" in err_s or "entity" in err_s:
+                    try:
+                        await bot.send_photo(chat_id=cid, photo=photo_file_id, caption=text)
+                        continue
+                    except Exception:
+                        pass
+                logging.warning(f"QC photo to {cid} failed: {e}")
 
-async def notify_quality_control(bot: Bot, order, rating: int = None, feedback: str = None, returned_items: str = None): # type: ignore
+        await _send(bot, cid, text, parse_mode="Markdown")
+
+async def notify_quality_control(
+    bot: Bot,
+    order,
+    rating: int = None,
+    feedback: str = None,
+    returned_items: str = None,
+    photo_file_id: str = None,
+):
+    driver_name = getattr(order, "driver_name", None)
+    dp = getattr(order, "delivery_partner", None)
+    if not driver_name and dp:
+        driver_name = dp.full_name
+    driver_phone = getattr(order, "driver_phone", None) or (dp.phone if dp else None)
+    driver_line = f"\n🚗 Driver: {driver_name}" if driver_name else ""
+    if driver_phone:
+        driver_line += f" (`{driver_phone}`)"
+
+    hotel_name = order.hotel.name if getattr(order, "hotel", None) else "—"
+    cust_name = order.customer.full_name if getattr(order, "customer", None) else "—"
     text = (
-        f"🔒 Quality Control Report\n\n"
+        f"🔒 *Quality Control Report*\n\n"
         f"🆔 Order: `{order.order_number}`\n"
-        f"🏨 Hotel: {order.hotel.name if order.hotel else '—'}\n"
-        f"👤 Customer: {order.customer.full_name if order.customer else '—'}\n"
+        f"🏨 Hotel: {hotel_name}\n"
+        f"👤 Customer: {cust_name}"
+        f"{driver_line}\n"
         f"⏰ Time: {_now()}\n\n"
     )
     if rating is not None:
-        text += f"⭐ Rating: {'⭐' * rating}  ({rating}/5)\n"
+        stars_filled = "⭐" * rating
+        stars_empty = "☆" * (5 - rating)
+        text += f"⭐ Rating: {stars_filled}{stars_empty} ({rating}/5)\n"
     if feedback:
         text += f"💬 Feedback: {feedback}\n"
     if returned_items:
-        text += f"🔄 Returned Items:\n{returned_items}\n"
+        text += f"🔄 Returned Items: {returned_items}\n"
 
-    await _broadcast(bot, QUALITY_CONTROL_GROUP_ID, text, parse_mode="Markdown")
+    targets = _extract_chat_ids({*SUPER_ADMIN_IDS, ADMIN_ID, QUALITY_CONTROL_GROUP_ID})
+    for cid in targets:
+        if photo_file_id:
+            try:
+                await bot.send_photo(
+                    chat_id=cid,
+                    photo=photo_file_id,
+                    caption=text,
+                    parse_mode="Markdown",
+                )
+                continue
+            except Exception as e:
+                err_s = str(e).lower()
+                if "can't parse entities" in err_s or "entity" in err_s:
+                    try:
+                        await bot.send_photo(chat_id=cid, photo=photo_file_id, caption=text)
+                        continue
+                    except Exception:
+                        pass
+                logging.warning(f"QC photo send to {cid} failed: {e}")
+
+        await _send(bot, cid, text, parse_mode="Markdown")
+

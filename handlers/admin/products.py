@@ -37,6 +37,8 @@ async def products_menu(message: Message, session: AsyncSession, lang: str = "en
     )
 
 
+from utils.helpers import safe_edit_text_or_caption
+
 @router.callback_query(F.data.startswith("admin_cat_products:"))
 async def products_for_category(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
     cat_id = int(callback.data.split(":")[1]) # type: ignore
@@ -47,7 +49,8 @@ async def products_for_category(callback: CallbackQuery, session: AsyncSession, 
         await callback.answer("Category not found.", show_alert=True)
         return
     products = await prod_repo.get_all_by_category(cat_id)
-    await callback.message.edit_text( # type: ignore
+    await safe_edit_text_or_caption(
+        callback,
         f"📦 *{cat.name}* — Products ({len(products)})\n\n✅ = Active  ❌ = Inactive",
         reply_markup=product_list_keyboard(products, cat_id, lang=lang),
         parse_mode="Markdown",
@@ -66,7 +69,8 @@ async def product_detail(callback: CallbackQuery, session: AsyncSession, lang: s
     cat_repo = CategoryRepository(session)
     cat = await cat_repo.get_by_id(prod.category_id)
     status = "✅ Active" if prod.is_active else "❌ Inactive"
-    await callback.message.edit_text( # type: ignore
+    await safe_edit_text_or_caption(
+        callback,
         f"📦 *{prod.name}*\n\n"
         f"📏 Unit: {prod.unit}\n"
         f"🗂 Category: {cat.name if cat else '—'}\n"

@@ -10,10 +10,10 @@ from keyboards.order_status import order_status_keyboard
 from services.notification_service import notify_customer_status_update, notify_sales_managers
 from filters.role_filter import RoleFilter
 from states.store_manager import StoreManagerState
-
+from sqlalchemy.ext.asyncio import AsyncSession
 router = Router()
-router.message.filter(RoleFilter(["hotel"]))
-router.callback_query.filter(RoleFilter(["hotel"]))
+router.message.filter(RoleFilter(["hotel", "hotel_admin", "store_manager", "admin"]))
+router.callback_query.filter(RoleFilter(["hotel", "hotel_admin", "store_manager", "admin"]))
 
 from utils.i18n import t
 
@@ -24,7 +24,7 @@ async def send_orders(message: Message, orders, lang: str = "en"):
     for order in orders:
         text = (
             f"📦 *Order*: {order.order_number}\n"
-            f"👤 *Customer*: {order.customer.full_name}\n"
+            f"👤 *Customer*: {order.customer.full_name if order.customer else '—'}\n"
             f"📌 *Status*: {order.status.value}\n"
         )
         if order.driver_name:
@@ -35,7 +35,7 @@ async def send_orders(message: Message, orders, lang: str = "en"):
             text += f"• Direct Upload ({order.original_filename or 'File'})\n"
         else:
             for item in order.items:
-                text += f"• {item.product.name} - {item.quantity} KG\n"
+                text += f"• {item.product.name if item.product else '—'} - {item.quantity} KG\n"
 
         builder = InlineKeyboardBuilder()
         builder.button(
@@ -53,7 +53,15 @@ async def send_orders(message: Message, orders, lang: str = "en"):
                     await message.answer_document(document=order.telegram_file_id, caption=text, reply_markup=kb, parse_mode="Markdown")
                 sent = True
             except Exception:
-                pass
+                try:
+                    if order.file_type == "photo":
+                        await message.answer_photo(photo=order.telegram_file_id, caption=text, reply_markup=kb)
+                    else:
+                        await message.answer_document(document=order.telegram_file_id, caption=text, reply_markup=kb)
+                    sent = True
+                except Exception:
+                    pass
+
         if not sent and order.file_path:
             import os
             from aiogram.types import FSInputFile
@@ -72,13 +80,27 @@ async def send_orders(message: Message, orders, lang: str = "en"):
                         await message.answer_document(document=f, caption=text, reply_markup=kb, parse_mode="Markdown")
                     sent = True
                 except Exception:
-                    pass
+                    try:
+                        f = FSInputFile(valid_path)
+                        if order.file_type == "photo":
+                            await message.answer_photo(photo=f, caption=text, reply_markup=kb)
+                        else:
+                            await message.answer_document(document=f, caption=text, reply_markup=kb)
+                        sent = True
+                    except Exception:
+                        pass
         if not sent:
-            await message.answer(
-                text,
-                reply_markup=kb,
-                parse_mode="Markdown"
-            )
+            try:
+                await message.answer(
+                    text,
+                    reply_markup=kb,
+                    parse_mode="Markdown"
+                )
+            except Exception:
+                await message.answer(
+                    text,
+                    reply_markup=kb,
+                )
 
 NEW_ORDERS_BTNS = ["📥 New Orders", "📥 አዳዲስ ትዕዛዞች", "📥 Ajajawwan Haaraa"]
 ACTIVE_ORDERS_BTNS = ["📦 Active Orders", "📦 የሚሰሩ ትዕዛዞች", "📦 Ajajawwan Hojii Irra Jiran"]

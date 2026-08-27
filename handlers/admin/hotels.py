@@ -40,11 +40,14 @@ async def hotels_menu(message: Message, session: AsyncSession, lang: str = "en")
     )
 
 
+from utils.helpers import safe_edit_text_or_caption
+
 @router.callback_query(F.data == "admin_hotels_back")
 async def hotels_back(callback: CallbackQuery, session: AsyncSession, lang: str = "en"):
     repo = HotelRepository(session)
     hotels = await repo.get_all()
-    await callback.message.edit_text( # type: ignore
+    await safe_edit_text_or_caption(
+        callback,
         t("admin_hotels_title", lang, count=len(hotels)),
         reply_markup=hotel_list_keyboard(hotels, lang=lang),
         parse_mode="Markdown",
@@ -75,8 +78,11 @@ async def hotel_detail(callback: CallbackQuery, session: AsyncSession, lang: str
         f"👥 Staff Count: {len(staff)}\n"
         f"📌 Status: {status}"
     )
-    await callback.message.edit_text( # type: ignore
-        text, reply_markup=hotel_detail_keyboard(hotel, lang=lang), parse_mode="Markdown"
+    await safe_edit_text_or_caption(
+        callback,
+        text,
+        reply_markup=hotel_detail_keyboard(hotel, lang=lang),
+        parse_mode="Markdown",
     )
     await callback.answer()
 
@@ -245,7 +251,8 @@ async def hotel_delete_confirm(callback: CallbackQuery, session: AsyncSession):
     if not hotel:
         await callback.answer("Hotel not found.", show_alert=True)
         return
-    await callback.message.edit_text( # type: ignore
+    await safe_edit_text_or_caption(
+        callback,
         f"⚠️ Are you sure you want to *delete* hotel *{hotel.name}*?\n"
         "This will soft-delete it (deactivate). All historical orders are preserved.",
         reply_markup=confirm_delete_keyboard("hotel", hotel_id),
@@ -264,7 +271,8 @@ async def hotel_delete_execute(callback: CallbackQuery, session: AsyncSession):
         return
     await repo.soft_delete(hotel)
     hotels = await repo.get_all()
-    await callback.message.edit_text( # type: ignore
+    await safe_edit_text_or_caption(
+        callback,
         f"🗑 Hotel *{hotel.name}* deleted (deactivated).\n\n"
         f"🏨 *Hotels* ({len(hotels)} total)\n✅ = Active  ❌ = Inactive",
         reply_markup=hotel_list_keyboard(hotels),
@@ -282,7 +290,8 @@ async def hotel_delete_cancel(callback: CallbackQuery, session: AsyncSession):
         await callback.answer()
         return
     status = "✅ Active" if hotel.is_active else "❌ Inactive"
-    await callback.message.edit_text( # type: ignore
+    await safe_edit_text_or_caption(
+        callback,
         f"🏨 *{hotel.name}*\n\n📍 {hotel.address or '—'}\n📞 {hotel.phone or '—'}\nStatus: {status}",
         reply_markup=hotel_detail_keyboard(hotel),
         parse_mode="Markdown",

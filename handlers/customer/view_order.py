@@ -15,8 +15,8 @@ from utils.i18n import t
 from utils.excel_export import generate_customer_excel
 
 router = Router()
-router.message.filter(RoleFilter(["customer"]))
-router.callback_query.filter(RoleFilter(["customer"]))
+router.message.filter(RoleFilter(["customer", "hotel"]))
+router.callback_query.filter(RoleFilter(["customer", "hotel"]))
 
 PAGE_SIZE = 5
 _STATUS_ICON = {
@@ -167,7 +167,9 @@ async def history_view_detail(callback: CallbackQuery, session: AsyncSession, la
         return
 
     is_upload = bool(order.file_path or order.telegram_file_id)
-    await callback.message.edit_text(
+    from utils.helpers import safe_edit_text_or_caption
+    await safe_edit_text_or_caption(
+        callback,
         _order_detail_text(order),
         reply_markup=_detail_keyboard(order_id, page, is_upload, lang=lang),
         parse_mode="Markdown",

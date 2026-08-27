@@ -146,6 +146,9 @@ async def staff_toggle_callback(callback: CallbackQuery, session: AsyncSession, 
 
     new_status = not staff_user.is_active
     await user_repo.set_active(staff_user, new_status)
+    if new_status:
+        from services.notification_service import notify_user_approved
+        await notify_user_approved(callback.bot, staff_user)
 
     alert_msg = t("staff_activated", lang) if new_status else t("staff_deactivated", lang)
     await callback.answer(alert_msg, show_alert=True)

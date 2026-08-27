@@ -46,17 +46,37 @@ async def safe_edit_text_or_caption(
         return
 
     has_media = bool(getattr(msg, "photo", None) or getattr(msg, "document", None))
+    
+    # 1. Try editing caption if media message
     if has_media:
         try:
             await msg.edit_caption(caption=text, reply_markup=reply_markup, parse_mode=parse_mode)
             return
-        except Exception:
-            pass
+        except Exception as e:
+            if "can't parse entities" in str(e).lower() or "entity" in str(e).lower():
+                try:
+                    await msg.edit_caption(caption=text, reply_markup=reply_markup, parse_mode=None)
+                    return
+                except Exception:
+                    pass
 
+    # 2. Try editing text
     try:
         await msg.edit_text(text=text, reply_markup=reply_markup, parse_mode=parse_mode)
+        return
+    except Exception as e:
+        if "can't parse entities" in str(e).lower() or "entity" in str(e).lower():
+            try:
+                await msg.edit_text(text=text, reply_markup=reply_markup, parse_mode=None)
+                return
+            except Exception:
+                pass
+
+    # 3. Fallback: try caption without parse mode or sending a new message
+    try:
+        await msg.edit_caption(caption=text, reply_markup=reply_markup, parse_mode=None)
     except Exception:
         try:
-            await msg.edit_caption(caption=text, reply_markup=reply_markup, parse_mode=parse_mode)
+            await msg.answer(text=text, reply_markup=reply_markup, parse_mode=None)
         except Exception:
-            await msg.answer(text=text, reply_markup=reply_markup, parse_mode=parse_mode)
+            pass

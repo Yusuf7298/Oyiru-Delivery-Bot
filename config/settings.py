@@ -7,13 +7,17 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "8710717192:AAHNfwOej0IWmNqxxV7gYY67VMVKy7KnI
 DATABASE_URL = os.getenv("DATABASE_URL", "mongodb+srv://ym47484988_db_user:sKZr5KRCuSPO9D0R@ethio-smart.i7vshtx.mongodb.net/?appName=Ethio-Smart")
 MONGODB_DB_NAME = os.getenv("MONGODB_DB_NAME", "oyiru_delivery_bot")
 
-ADMIN_ID = os.getenv("ADMIN_ID", "8223004316")
-
+_admin_raw = os.getenv("ADMIN_ID", "8223004316")
 _extra = os.getenv("SUPER_ADMIN_IDS", "7269164159")
-SUPER_ADMIN_IDS: set[str] = {
-    str(ADMIN_ID).strip(),
-    *[s.strip() for s in _extra.split(",") if s.strip()],
-}
+
+SUPER_ADMIN_IDS: set[str] = set()
+for raw in [_admin_raw, _extra]:
+    for part in raw.split(","):
+        part = part.strip()
+        if part:
+            SUPER_ADMIN_IDS.add(part)
+
+ADMIN_ID = next(iter(SUPER_ADMIN_IDS)) if SUPER_ADMIN_IDS else "8223004316"
 
 ORDERS_GROUP_ID          = os.getenv("ORDERS_GROUP_ID",          ADMIN_ID)
 STORE_MANAGERS_GROUP_ID  = os.getenv("STORE_MANAGERS_GROUP_ID",  ADMIN_ID)

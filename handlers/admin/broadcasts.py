@@ -27,9 +27,10 @@ class BroadcastStates(StatesGroup):
 
 AUDIENCE_OPTIONS = {
     "bc_customers":      ("👤 Customers",       ["customer"]),
-    "bc_store_managers": ("🏪 Store Managers",  ["hotel"]),
-    "bc_drivers":        ("🚚 Drivers",          ["delivery"]),
-    "bc_everyone":       ("🌍 Everyone",         ["customer", "hotel", "delivery", "admin"]),
+    "bc_hotel_admins":   ("🏨 Hotel Admins",    ["hotel_admin", "hotel"]),
+    "bc_store_managers": ("🏪 Store Managers",  ["store_manager"]),
+    "bc_drivers":        ("🚚 Drivers",          ["driver", "delivery"]),
+    "bc_everyone":       ("🌍 Everyone",         ["customer", "hotel_admin", "hotel", "store_manager", "driver", "delivery", "admin"]),
 }
 
 

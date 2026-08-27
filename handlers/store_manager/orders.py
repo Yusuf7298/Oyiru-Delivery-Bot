@@ -21,8 +21,8 @@ from keyboards.store_manager import (
 from filters.role_filter import RoleFilter
 
 router = Router()
-router.message.filter(RoleFilter(["hotel"]))
-router.callback_query.filter(RoleFilter(["hotel"]))
+router.message.filter(RoleFilter(["store_manager", "admin"]))
+router.callback_query.filter(RoleFilter(["store_manager", "admin"]))
 
 def _order_summary(order) -> str:
     lines = []
@@ -54,7 +54,10 @@ def _order_summary(order) -> str:
 async def _send_order_card(message: Message, order, reply_markup=None):
     summary = _order_summary(order)
     if not (order.file_path or order.telegram_file_id):
-        await message.answer(summary, reply_markup=reply_markup, parse_mode="Markdown")
+        try:
+            await message.answer(summary, reply_markup=reply_markup, parse_mode="Markdown")
+        except Exception:
+            await message.answer(summary, reply_markup=reply_markup)
         return
 
     is_photo = (order.file_type == "photo")
@@ -67,7 +70,15 @@ async def _send_order_card(message: Message, order, reply_markup=None):
                 await message.answer_document(document=order.telegram_file_id, caption=summary, reply_markup=reply_markup, parse_mode="Markdown")
                 return
         except Exception as e:
-            logger.warning(f"Failed to send order media via telegram_file_id to store manager: {e}")
+            try:
+                if is_photo:
+                    await message.answer_photo(photo=order.telegram_file_id, caption=summary, reply_markup=reply_markup)
+                    return
+                else:
+                    await message.answer_document(document=order.telegram_file_id, caption=summary, reply_markup=reply_markup)
+                    return
+            except Exception:
+                logger.warning(f"Failed to send order media via telegram_file_id to store manager: {e}")
 
     if order.file_path:
         full_path = os.path.join(os.getcwd(), order.file_path) if not os.path.isabs(order.file_path) else order.file_path
@@ -81,9 +92,20 @@ async def _send_order_card(message: Message, order, reply_markup=None):
                     await message.answer_document(document=file_input, caption=summary, reply_markup=reply_markup, parse_mode="Markdown")
                     return
             except Exception as e:
-                logger.warning(f"Failed to send order media via FSInputFile to store manager: {e}")
+                try:
+                    if is_photo:
+                        await message.answer_photo(photo=file_input, caption=summary, reply_markup=reply_markup)
+                        return
+                    else:
+                        await message.answer_document(document=file_input, caption=summary, reply_markup=reply_markup)
+                        return
+                except Exception:
+                    logger.warning(f"Failed to send order media via FSInputFile to store manager: {e}")
 
-    await message.answer(summary, reply_markup=reply_markup, parse_mode="Markdown")
+    try:
+        await message.answer(summary, reply_markup=reply_markup, parse_mode="Markdown")
+    except Exception:
+        await message.answer(summary, reply_markup=reply_markup)
 
 
 @router.message(F.text == "📋 Store Manager")

@@ -47,6 +47,8 @@ _ROLE_MENU = {
 }
 
 
+from keyboards.store_manager import store_manager_menu, hotel_admin_menu
+
 @router.message(F.text.in_(_KNOWN_BUTTONS))
 async def fallback_known_button(message: Message, session: AsyncSession):
     user_repo = UserRepository(session)
@@ -67,18 +69,24 @@ async def fallback_known_button(message: Message, session: AsyncSession):
         return
 
     user_lang = getattr(user, "language", "en") or "en"
+    role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
     
-    if user.role == "delivery":
+    if role_val in ("driver", "delivery"):
         await message.answer(
             "ℹ️ Main Menu:",
             reply_markup=delivery_menu(user_lang),
         )
-    elif user.role == "hotel":
+    elif role_val in ("hotel_admin", "hotel"):
+        await message.answer(
+            "ℹ️ Main Menu:",
+            reply_markup=hotel_admin_menu(user_lang),
+        )
+    elif role_val == "store_manager":
         await message.answer(
             "ℹ️ Main Menu:",
             reply_markup=store_manager_menu(user_lang),
         )
-    elif user.role == "admin":
+    elif role_val == "admin":
         await message.answer(
             "ℹ️ Main Menu:",
             reply_markup=admin_main_menu(user_lang),

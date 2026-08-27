@@ -3,12 +3,21 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from database.models.order import OrderStatus
 from utils.i18n import t
 
+def hotel_admin_menu(lang: str = "en") -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=t("btn_place_order", lang)), KeyboardButton(text=t("btn_store_order_history", lang))],
+            [KeyboardButton(text=t("btn_my_staff", lang)), KeyboardButton(text=t("btn_export_hotel_excel", lang))],
+            [KeyboardButton(text=t("btn_contact_support", lang)), KeyboardButton(text=t("btn_language", lang))],
+        ],
+        resize_keyboard=True,
+    )
+
 def store_manager_menu(lang: str = "en") -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text=t("btn_place_order", lang)), KeyboardButton(text=t("btn_store_new_orders", lang))],
-            [KeyboardButton(text=t("btn_store_active_orders", lang)), KeyboardButton(text=t("btn_store_order_history", lang))],
-            [KeyboardButton(text=t("btn_my_staff", lang)), KeyboardButton(text=t("btn_export_hotel_excel", lang))],
+            [KeyboardButton(text=t("btn_store_new_orders", lang)), KeyboardButton(text=t("btn_store_active_orders", lang))],
+            [KeyboardButton(text=t("btn_store_order_history", lang)), KeyboardButton(text=t("btn_export_orders", lang))],
             [KeyboardButton(text=t("btn_contact_support", lang)), KeyboardButton(text=t("btn_language", lang))],
         ],
         resize_keyboard=True,
