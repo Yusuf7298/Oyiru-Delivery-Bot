@@ -4,6 +4,7 @@ from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from database.models.hotel import Hotel
 from database.repositories.hotel_repository import HotelRepository
+from database.repositories.user_repository import UserRepository
 from filters.role_filter import RoleFilter
 from keyboards.admin_menu import (
     hotel_list_keyboard,
@@ -219,7 +220,8 @@ async def hotel_deactivate(callback: CallbackQuery, session: AsyncSession):
     await callback.answer("🔴 Hotel deactivated.", show_alert=True)
     # Refresh detail view
     status = "✅ Active" if hotel.is_active else "❌ Inactive"
-    await callback.message.edit_text( # type: ignore
+    await safe_edit_text_or_caption(
+        callback,
         f"🏨 *{hotel.name}*\n\n📍 {hotel.address or '—'}\n📞 {hotel.phone or '—'}\nStatus: {status}",
         reply_markup=hotel_detail_keyboard(hotel),
         parse_mode="Markdown",
@@ -237,7 +239,8 @@ async def hotel_activate(callback: CallbackQuery, session: AsyncSession):
     await repo.activate(hotel)
     await callback.answer("🟢 Hotel activated.", show_alert=True)
     status = "✅ Active" if hotel.is_active else "❌ Inactive"
-    await callback.message.edit_text( # type: ignore
+    await safe_edit_text_or_caption(
+        callback,
         f"🏨 *{hotel.name}*\n\n📍 {hotel.address or '—'}\n📞 {hotel.phone or '—'}\nStatus: {status}",
         reply_markup=hotel_detail_keyboard(hotel),
         parse_mode="Markdown",
@@ -253,8 +256,8 @@ async def hotel_delete_confirm(callback: CallbackQuery, session: AsyncSession):
         return
     await safe_edit_text_or_caption(
         callback,
-        f"⚠️ Are you sure you want to *delete* hotel *{hotel.name}*?\n"
-        "This will soft-delete it (deactivate). All historical orders are preserved.",
+        f"⚠️ Are you sure you want to permanently *delete* hotel *{hotel.name}*?\n"
+        "This will completely remove it from the system.",
         reply_markup=confirm_delete_keyboard("hotel", hotel_id),
         parse_mode="Markdown",
     )
@@ -269,16 +272,16 @@ async def hotel_delete_execute(callback: CallbackQuery, session: AsyncSession):
     if not hotel:
         await callback.answer("Hotel not found.", show_alert=True)
         return
-    await repo.soft_delete(hotel)
+    await repo.delete(hotel)
     hotels = await repo.get_all()
     await safe_edit_text_or_caption(
         callback,
-        f"🗑 Hotel *{hotel.name}* deleted (deactivated).\n\n"
+        f"🗑 Hotel *{hotel.name}* has been permanently removed.\n\n"
         f"🏨 *Hotels* ({len(hotels)} total)\n✅ = Active  ❌ = Inactive",
         reply_markup=hotel_list_keyboard(hotels),
         parse_mode="Markdown",
     )
-    await callback.answer("Deleted.")
+    await callback.answer("Hotel deleted.")
 
 
 @router.callback_query(F.data.startswith("cancel_delete_hotel:"))

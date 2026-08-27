@@ -16,8 +16,6 @@ async def reset():
             print(f"Dropped {len(tables)} tables: {', '.join(r['tablename'] for r in tables)}")
         else:
             print("No tables to drop.")
-
-        # 2. Drop all custom ENUM types
         types = await conn.fetch(
             "SELECT typname FROM pg_type "
             "WHERE typtype = 'e' "
@@ -32,6 +30,5 @@ async def reset():
         print("\nDatabase fully reset. Run: python -m alembic upgrade head")
     finally:
         await conn.close()
-
 
 asyncio.run(reset())

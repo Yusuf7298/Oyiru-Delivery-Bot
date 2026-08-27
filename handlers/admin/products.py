@@ -355,8 +355,10 @@ async def product_delete_confirm(callback: CallbackQuery, session: AsyncSession)
     if not prod:
         await callback.answer("Not found.", show_alert=True)
         return
-    await callback.message.edit_text( # type: ignore
-        f"⚠️ Delete product *{prod.name}*?\n(Soft delete — deactivates it.)",
+    await safe_edit_text_or_caption(
+        callback,
+        f"⚠️ Are you sure you want to permanently *delete* product *{prod.name}*?\n"
+        "This will completely remove it from the system.",
         reply_markup=confirm_delete_keyboard("prod", prod_id),
         parse_mode="Markdown",
     )
@@ -372,17 +374,18 @@ async def product_delete_execute(callback: CallbackQuery, session: AsyncSession)
         await callback.answer("Not found.", show_alert=True)
         return
     cat_id = prod.category_id
-    await repo.soft_delete(prod)
+    await repo.delete(prod)
     products = await repo.get_all_by_category(cat_id)
     cat_repo = CategoryRepository(session)
     cat = await cat_repo.get_by_id(cat_id)
-    await callback.message.edit_text( # type: ignore
-        f"🗑 Product *{prod.name}* deleted.\n\n"
+    await safe_edit_text_or_caption(
+        callback,
+        f"🗑 Product *{prod.name}* permanently deleted.\n\n"
         f"📦 *{cat.name if cat else '—'}* — Products ({len(products)})",
         reply_markup=product_list_keyboard(products, cat_id),
         parse_mode="Markdown",
     )
-    await callback.answer("Deleted.")
+    await callback.answer("Product deleted.")
 
 
 @router.callback_query(F.data.startswith("cancel_delete_prod:"))

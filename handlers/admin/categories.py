@@ -18,6 +18,7 @@ router.message.filter(RoleFilter(["admin"]))
 router.callback_query.filter(RoleFilter(["admin"]))
 
 from utils.i18n import t
+from utils.helpers import safe_edit_text_or_caption
 
 CATEGORIES_MENU_BTNS = ["🧺 Categories", "🗂 Categories", "🧺 ምድቦች", "🧺 Gareewwan"]
 
@@ -125,7 +126,8 @@ async def category_deactivate(callback: CallbackQuery, session: AsyncSession):
     await repo.soft_delete(cat)
     await callback.answer("🔴 Category deactivated.", show_alert=True)
     status = "✅ Active" if cat.is_active else "❌ Inactive"
-    await callback.message.edit_text( # type: ignore
+    await safe_edit_text_or_caption(
+        callback,
         f"🗂 *{cat.name}*\nStatus: {status}",
         reply_markup=category_detail_keyboard(cat),
         parse_mode="Markdown",
@@ -143,7 +145,8 @@ async def category_activate(callback: CallbackQuery, session: AsyncSession):
     await repo.activate(cat)
     await callback.answer("🟢 Category activated.", show_alert=True)
     status = "✅ Active" if cat.is_active else "❌ Inactive"
-    await callback.message.edit_text( # type: ignore
+    await safe_edit_text_or_caption(
+        callback,
         f"🗂 *{cat.name}*\nStatus: {status}",
         reply_markup=category_detail_keyboard(cat),
         parse_mode="Markdown",
@@ -157,8 +160,10 @@ async def category_delete_confirm(callback: CallbackQuery, session: AsyncSession
     if not cat:
         await callback.answer("Not found.", show_alert=True)
         return
-    await callback.message.edit_text( # type: ignore
-        f"⚠️ Delete category *{cat.name}*?\nAll its products will also be deactivated.",
+    await safe_edit_text_or_caption(
+        callback,
+        f"⚠️ Are you sure you want to permanently *delete* category *{cat.name}*?\n"
+        "All its products will also be permanently removed.",
         reply_markup=confirm_delete_keyboard("cat", cat_id),
         parse_mode="Markdown",
     )
@@ -177,17 +182,18 @@ async def category_delete_execute(callback: CallbackQuery, session: AsyncSession
     prod_repo = ProductRepository(session)
     products = await prod_repo.get_all_by_category(cat_id)
     for p in products:
-        await prod_repo.soft_delete(p)
+        await prod_repo.delete(p)
 
-    await repo.soft_delete(cat)
+    await repo.delete(cat)
     cats = await repo.get_all()
-    await callback.message.edit_text( # type: ignore
-        f"🗑 Category *{cat.name}* deleted.\n\n"
+    await safe_edit_text_or_caption(
+        callback,
+        f"🗑 Category *{cat.name}* and its products have been permanently deleted.\n\n"
         f"🗂 *Categories* ({len(cats)} total)",
         reply_markup=category_list_keyboard(cats),
         parse_mode="Markdown",
     )
-    await callback.answer("Deleted.")
+    await callback.answer("Category deleted.")
 
 
 @router.callback_query(F.data.startswith("cancel_delete_cat:"))
