@@ -41,6 +41,25 @@ class UserRepository(BaseRepository):
         await self._populate_hotel(user)
         return user
 
+    async def get_by_phone(self, phone: str) -> Optional[User]:
+        if not phone:
+            return None
+        from utils.helpers import normalize_ethiopian_phone
+        norm = normalize_ethiopian_phone(phone)
+        variations = [phone.strip()]
+        if norm:
+            variations.append(norm)
+            variations.append("0" + norm[4:])
+            variations.append(norm[1:])
+            variations.append(norm[4:])
+
+        doc = await self.db["users"].find_one({"phone": {"$in": variations}})
+        if not doc:
+            return None
+        user = User.from_dict(doc)
+        await self._populate_hotel(user)
+        return user
+
     async def get_delivery_partners(self) -> List[User]:
         cursor = self.db["users"].find({
             "role": UserRole.DELIVERY.value,

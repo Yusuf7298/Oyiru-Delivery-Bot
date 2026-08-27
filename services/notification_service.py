@@ -61,13 +61,18 @@ def _order_detail_block(order, customer=None) -> str:
         cust = "—"
 
     status_val = order.status.value if hasattr(order.status, "value") else str(order.status)
-    driver   = f"\n🚗 Driver: {order.driver_name}" if getattr(order, "driver_name", None) else ""
-    note     = f"\n📝 Note: {order.note}" if getattr(order, "note", None) else ""
+    dp = getattr(order, "delivery_partner", None)
+    dname = getattr(order, "driver_name", None) or (dp.full_name if dp else None)
+    dphone = (dp.phone if dp and getattr(dp, "phone", None) else None)
+    driver_str = f"\n🚗 Driver: {dname}" if dname else ""
+    if dphone:
+        driver_str += f"\n📞 Driver Phone: `{dphone}`"
+    note = f"\n📝 Note: {order.note}" if getattr(order, "note", None) else ""
     return (
         f"🆔 Order: `{order.order_number}`\n"
         f"🏨 Hotel: {hotel}\n"
         f"👤 Customer: {cust}\n"
-        f"📌 Status: {status_val}{driver}{note}\n"
+        f"📌 Status: {status_val}{driver_str}{note}\n"
         f"⏰ Time: {_now()}\n\n"
         f"🛒 Products / File:\n{_products_block(order)}"
     )
@@ -285,26 +290,22 @@ async def notify_customer_status_update(bot: Bot, order, customer_telegram_id: i
     else:
         status_msg = f"Your order status: {order.status.value}"
 
-    driver_line = f"\n🚗 Driver: {order.driver_name}" if order.driver_name else ""
-
-    # When out for delivery, add the delivery partner's contact details if available
-    driver_contact = ""
-    if order.status == OrderStatus.OUT_FOR_DELIVERY:
-        dp = getattr(order, "delivery_partner", None)
-        if dp:
-            driver_contact += f"\n👤 Driver: {dp.full_name}"
-            if getattr(dp, "phone", None):
-                driver_contact += f"\n📞 Phone: {dp.phone}"
-        elif order.driver_name:
-            driver_contact = f"\n👤 Driver: {order.driver_name}"
+    driver_info = ""
+    dp = getattr(order, "delivery_partner", None)
+    dname = getattr(order, "driver_name", None) or (dp.full_name if dp else None)
+    dphone = (dp.phone if dp and getattr(dp, "phone", None) else None)
+    if dname:
+        driver_info += f"\n🚗 Driver: {dname}"
+    if dphone:
+        driver_info += f"\n📞 Driver Phone: `{dphone}`"
 
     text = (
         f"🔔 Order Update\n\n"
         f"🆔 Order: `{order.order_number}`\n"
         f"🏨 Hotel: {order.hotel.name if order.hotel else '—'}\n"
-        f"📌 Status: {order.status.value}{driver_line}\n"
-        f"⏰ Time: {_now()}\n"
-        f"{driver_contact}\n"
+        f"📌 Status: {order.status.value}"
+        f"{driver_info}\n"
+        f"⏰ Time: {_now()}\n\n"
         f"{status_msg}"
     )
 

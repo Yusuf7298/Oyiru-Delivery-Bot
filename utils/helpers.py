@@ -1,6 +1,35 @@
-from __future__ import annotations
+import re
 from datetime import datetime
 from aiogram.types import CallbackQuery, Message
+
+def normalize_ethiopian_phone(phone: str | None) -> str | None:
+    """
+    Validates and standardizes Ethiopian phone numbers.
+    Accepts: +2519, +2517, 09, 07, 2519, 2517, 9, 7
+    Returns: +2519XXXXXXXX or +2517XXXXXXXX
+    Returns None if invalid.
+    """
+    if not phone:
+        return None
+    cleaned = re.sub(r"[\s\-\(\)\.]", "", str(phone).strip())
+
+    if re.match(r"^\+251[97]\d{8}$", cleaned):
+        return cleaned
+    if re.match(r"^251[97]\d{8}$", cleaned):
+        return f"+{cleaned}"
+    if re.match(r"^0[97]\d{8}$", cleaned):
+        return f"+251{cleaned[1:]}"
+    if re.match(r"^[97]\d{8}$", cleaned):
+        return f"+251{cleaned}"
+    return None
+
+def format_phone_display(phone: str | None) -> str:
+    norm = normalize_ethiopian_phone(phone)
+    if not norm:
+        return str(phone or "—")
+    if norm.startswith("+251"):
+        return "0" + norm[4:]
+    return norm
 
 def generate_order_number(order_id: int) -> str:
     date = datetime.now().strftime("%Y%m%d")
