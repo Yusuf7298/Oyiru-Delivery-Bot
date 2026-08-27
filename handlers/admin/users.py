@@ -86,6 +86,23 @@ async def list_users_paginated(callback: CallbackQuery, session: AsyncSession, l
     label = ROLE_SECTION_LABELS.get(role_key, "👥 Users")
 
     if not users:
+        if role_key in ("driver", "delivery"):
+            from aiogram.utils.keyboard import InlineKeyboardBuilder
+            b = InlineKeyboardBuilder()
+            b.row(
+                InlineKeyboardButton(text="➕ " + t("btn_add_driver", lang), callback_data="admin_driver_add"),
+                InlineKeyboardButton(text="🔗 " + t("btn_driver_invite_link", lang), callback_data="admin_driver_invite"),
+            )
+            b.row(InlineKeyboardButton(text=t("btn_back", lang), callback_data="admin_users_back"))
+            await safe_edit_text_or_caption(
+                callback,
+                f"👥 *{label}* (0 total)\n\nNo drivers registered yet.\nTap below to register a driver or generate an invite link:",
+                reply_markup=b.as_markup(),
+                parse_mode="Markdown",
+            )
+            await callback.answer()
+            return
+
         await safe_edit_text_or_caption(
             callback,
             f"👥 {label}\n\nNo users found in this section.",
