@@ -1,4 +1,4 @@
-﻿import re
+import re
 from typing import Dict, Any, Optional
 from database.session import db
 
@@ -19,7 +19,7 @@ class SettingsRepository:
         if not doc:
             await self.db["system_settings"].update_one(
                 {"_id": "support_contact"},
-                {"": DEFAULT_SUPPORT},
+                {"$set": DEFAULT_SUPPORT},
                 upsert=True
             )
             doc = DEFAULT_SUPPORT.copy()
@@ -54,7 +54,7 @@ class SettingsRepository:
         if update_data:
             await self.db["system_settings"].update_one(
                 {"_id": "support_contact"},
-                {"": update_data},
+                {"$set": update_data},
                 upsert=True
             )
         return await self.get_support_contact()
@@ -62,7 +62,7 @@ class SettingsRepository:
     async def reset_support_contact(self) -> Dict[str, Any]:
         await self.db["system_settings"].update_one(
             {"_id": "support_contact"},
-            {"": DEFAULT_SUPPORT},
+            {"$set": DEFAULT_SUPPORT},
             upsert=True
         )
         return await self.get_support_contact()
