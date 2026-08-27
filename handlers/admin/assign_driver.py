@@ -13,8 +13,8 @@ from services.notification_service import (
 )
 
 router = Router()
-# Both admin and store manager (hotel role) can assign drivers
-router.callback_query.filter(RoleFilter(["admin", "hotel"]))
+# Both admin, store manager and hotel admin can assign drivers
+router.callback_query.filter(RoleFilter(["admin", "hotel", "hotel_admin", "store_manager"]))
 
 
 # ── Admin path: assign_driver:<id> → driver:<id>:<driver_id> ──────────────────
@@ -24,19 +24,25 @@ async def choose_driver(callback: CallbackQuery, session: AsyncSession) -> None:
     order_id_str = callback.data.split(":")[1] # type: ignore
     drivers = await UserRepository(session).get_delivery_partners()
     if not drivers:
-        await callback.answer("No active delivery partners found.", show_alert=True)
+        await callback.answer(
+            "⚠️ No active drivers found.\n\nPlease ensure a Driver is registered and activated in 👥 Users.",
+            show_alert=True
+        )
         return
 
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(
-                text=driver.full_name,
+                text=f"🚗 {driver.full_name}",
                 callback_data=f"driver:{order_id_str}:{driver.id}",
             )]
             for driver in drivers
         ]
     )
-    await callback.message.edit_reply_markup(reply_markup=keyboard) # type: ignore
+    try:
+        await callback.message.edit_reply_markup(reply_markup=keyboard) # type: ignore
+    except Exception:
+        pass
     await callback.answer()
 
 
@@ -57,7 +63,10 @@ async def sm_choose_driver(callback: CallbackQuery, session: AsyncSession, lang:
     order_id_str = callback.data.split(":")[1] # type: ignore
     drivers = await UserRepository(session).get_delivery_partners()
     if not drivers:
-        await callback.answer("No active delivery partners found.", show_alert=True)
+        await callback.answer(
+            "⚠️ No active drivers found.\n\nPlease ensure a Driver is registered and activated in 👥 Users.",
+            show_alert=True
+        )
         return
 
     keyboard = InlineKeyboardMarkup(
@@ -69,7 +78,10 @@ async def sm_choose_driver(callback: CallbackQuery, session: AsyncSession, lang:
             for driver in drivers
         ] + [[InlineKeyboardButton(text=t("btn_cancel", lang), callback_data=f"sm_driver_cancel:{order_id_str}")]]
     )
-    await callback.message.edit_reply_markup(reply_markup=keyboard) # type: ignore
+    try:
+        await callback.message.edit_reply_markup(reply_markup=keyboard) # type: ignore
+    except Exception:
+        pass
     await callback.answer()
 
 

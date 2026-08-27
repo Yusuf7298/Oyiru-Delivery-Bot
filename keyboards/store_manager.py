@@ -17,11 +17,26 @@ def store_manager_menu(lang: str = "en") -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text=t("btn_store_new_orders", lang)), KeyboardButton(text=t("btn_store_active_orders", lang))],
-            [KeyboardButton(text=t("btn_store_order_history", lang)), KeyboardButton(text=t("btn_export_orders", lang))],
-            [KeyboardButton(text=t("btn_contact_support", lang)), KeyboardButton(text=t("btn_language", lang))],
+            [KeyboardButton(text=t("btn_store_order_history", lang)), KeyboardButton(text=t("btn_store_drivers", lang))],
+            [KeyboardButton(text=t("btn_export_orders", lang)), KeyboardButton(text=t("btn_contact_support", lang))],
+            [KeyboardButton(text=t("btn_language", lang))],
         ],
         resize_keyboard=True,
     )
+
+def store_manager_drivers_keyboard(drivers: list = None, lang: str = "en") -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    if drivers:
+        for d in drivers:
+            icon = "✅" if d.is_active else "❌"
+            builder.button(
+                text=f"{icon} 🚗 {d.full_name} ({d.phone or '—'})",
+                callback_data=f"admin_user_detail:{d.id}:driver:1"
+            )
+    builder.button(text=t("btn_add_driver", lang), callback_data="admin_driver_add")
+    builder.button(text=t("btn_driver_invite_link", lang), callback_data="admin_driver_invite")
+    builder.adjust(1)
+    return builder.as_markup()
 
 def staff_management_keyboard(hotel_id: int, lang: str = "en") -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()

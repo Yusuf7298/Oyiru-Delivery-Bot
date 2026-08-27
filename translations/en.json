@@ -138,5 +138,8 @@
     "support_telegram_label": "💬 *Telegram*",
     "btn_chat_telegram": "💬 Chat on Telegram",
     "btn_call_support": "📞 Call Support",
-    "btn_email_support": "✉️ Send Email"
+    "btn_email_support": "✉️ Send Email",
+    "btn_add_driver": "➕ Add Driver",
+    "btn_driver_invite_link": "🔗 Driver Invite Link",
+    "btn_store_drivers": "🚚 Drivers"
 }

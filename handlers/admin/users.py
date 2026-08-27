@@ -130,6 +130,12 @@ async def list_users_paginated(callback: CallbackQuery, session: AsyncSession, l
     if len(nav_row) > 1:
         builder.row(*nav_row)
 
+    if role_key in ("driver", "delivery"):
+        builder.row(
+            InlineKeyboardButton(text="➕ " + t("btn_add_driver", lang), callback_data="admin_driver_add"),
+            InlineKeyboardButton(text="🔗 " + t("btn_driver_invite_link", lang), callback_data="admin_driver_invite"),
+        )
+
     builder.row(
         InlineKeyboardButton(text=t("btn_back", lang), callback_data="admin_users_back")
     )
@@ -143,6 +149,156 @@ async def list_users_paginated(callback: CallbackQuery, session: AsyncSession, l
         parse_mode="Markdown",
     )
     await callback.answer()
+
+
+@router.callback_query(F.data == "admin_driver_invite")
+async def driver_invite_link(callback: CallbackQuery, lang: str = "en"):
+    bot_info = await callback.bot.get_me()
+    link = f"https://t.me/{bot_info.username}?start=driver_join"
+    text = (
+        "🔗 *Driver Registration Invite Link*\n\n"
+        "Share this link with delivery drivers to let them register directly:\n"
+        f"`{link}`\n\n"
+        "When they tap this link, they will enter their name and phone number to register."
+    )
+    await callback.message.answer(text, parse_mode="Markdown") # type: ignore
+    await callback.answer()
+
+
+from aiogram.fsm.context import FSMContext
+from states.admin import DriverRegistrationStates
+
+@router.callback_query(F.data == "admin_driver_add")
+async def driver_add_start(callback: CallbackQuery, state: FSMContext, lang: str = "en"):
+    await state.set_state(DriverRegistrationStates.waiting_name)
+    await callback.message.answer( # type: ignore
+        "🚚 *Register New Delivery Driver*\n\n"
+        "Please enter the driver's *Full Name*:",
+        parse_mode="Markdown"
+    )
+    await callback.answer()
+
+
+@router.message(DriverRegistrationStates.waiting_name)
+async def driver_add_name(message: Message, state: FSMContext):
+    name = (message.text or "").strip()
+    if len(name) < 2:
+        await message.answer("❌ Please enter a valid name (at least 2 characters):")
+        return
+    await state.update_data(driver_name=name)
+    await state.set_state(DriverRegistrationStates.waiting_phone)
+    await message.answer(
+        f"📱 Enter the phone number for *{name}*:\n"
+        "_(Must be a valid Ethiopian phone number, e.g. `0911223344`)_",
+        parse_mode="Markdown"
+    )
+
+
+@router.message(DriverRegistrationStates.waiting_phone)
+async def driver_add_phone(message: Message, state: FSMContext):
+    raw_phone = (message.text or "").strip()
+    from utils.helpers import normalize_ethiopian_phone, format_phone_display
+    norm = normalize_ethiopian_phone(raw_phone)
+    if not norm:
+        await message.answer(
+            "❌ Invalid phone number. Please enter a valid Ethiopian phone number (e.g. `0911223344` or `+251911223344`):"
+        )
+        return
+
+    await state.update_data(driver_phone=format_phone_display(norm), driver_phone_norm=norm)
+    await state.set_state(DriverRegistrationStates.waiting_telegram_id)
+    await message.answer(
+        "✈️ Enter the driver's *Telegram Username* (e.g. `@username` or send `—` to skip):",
+        parse_mode="Markdown"
+    )
+
+
+@router.message(DriverRegistrationStates.waiting_telegram_id)
+async def driver_add_username(message: Message, state: FSMContext, session: AsyncSession):
+    val = (message.text or "").strip()
+    username_clean = None
+    if val and val != "—" and val != "-":
+        username_clean = val.lstrip("@").strip()
+
+    data = await state.get_data()
+    await state.clear()
+
+    user_repo = UserRepository(session)
+    driver_name = data["driver_name"]
+    formatted_phone = data["driver_phone"]
+    norm_phone = data["driver_phone_norm"]
+
+    # Check if user already exists by phone or username
+    existing = await user_repo.get_by_phone(norm_phone)
+    if not existing and username_clean:
+        existing = await user_repo.get_by_username(username_clean)
+
+    welcome_sent = False
+    from keyboards.delivery import delivery_menu
+
+    if existing:
+        await user_repo.set_role(existing, "driver")
+        await user_repo.set_active(existing, True)
+        if username_clean:
+            await user_repo.update_username(existing.telegram_id, username_clean)
+        
+        # Send direct welcome message to the existing telegram account
+        if existing.telegram_id:
+            try:
+                user_lang = getattr(existing, "language", "en") or "en"
+                uname_tag = f"@{existing.username}" if existing.username else existing.full_name
+                await message.bot.send_message( # type: ignore
+                    chat_id=existing.telegram_id,
+                    text=(
+                        f"🎉 <b>Welcome to Oyiru Delivery Team, {uname_tag}!</b>\n\n"
+                        "You have been registered as an active <b>Delivery Driver</b>.\n"
+                        "Use /start to open your delivery dashboard and view assigned orders."
+                    ),
+                    reply_markup=delivery_menu(user_lang),
+                    parse_mode="HTML"
+                )
+                welcome_sent = True
+            except Exception as e:
+                logger.warning(f"Could not send welcome message to driver {existing.telegram_id}: {e}")
+
+        welcome_note = "✅ Welcome message sent directly to driver on Telegram!" if welcome_sent else "ℹ️ Driver updated in system."
+        await message.answer(
+            f"🎉 *Delivery Driver Updated Successfully!*\n\n"
+            f"👤 *Name*: {existing.full_name}\n"
+            f"📱 *Phone*: {existing.phone or formatted_phone}\n"
+            f"🏷 *Username*: @{username_clean or existing.username or '—'}\n"
+            f"🔑 *Role*: 🚚 Delivery Driver\n"
+            f"📌 *Status*: ✅ Active\n\n"
+            f"{welcome_note}",
+            parse_mode="Markdown"
+        )
+        return
+
+    from database.models.user import User
+    driver_user = User(
+        full_name=driver_name,
+        phone=formatted_phone,
+        username=username_clean,
+        role="driver",
+        is_active=True,
+    )
+    await user_repo.create(driver_user)
+
+    bot_info = await message.bot.get_me()
+    invite_link = f"https://t.me/{bot_info.username}?start=driver_join"
+    uname_str = f"@{username_clean}" if username_clean else "—"
+
+    await message.answer(
+        f"🎉 *Delivery Driver Registered Successfully!*\n\n"
+        f"👤 *Name*: {driver_name}\n"
+        f"📱 *Phone*: {formatted_phone}\n"
+        f"🏷 *Username*: {uname_str}\n"
+        f"🔑 *Role*: 🚚 Delivery Driver\n"
+        f"📌 *Status*: ✅ Active\n\n"
+        f"🔗 *Invite Link for Driver*:\n`{invite_link}`\n\n"
+        "When the driver opens this link in Telegram, they will instantly access their Delivery Dashboard.",
+        parse_mode="Markdown"
+    )
 
 
 # Legacy callback compatibility handlers redirecting to admin_users_list

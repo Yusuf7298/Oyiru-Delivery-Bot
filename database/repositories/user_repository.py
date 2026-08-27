@@ -17,6 +17,9 @@ class UserRepository(BaseRepository):
     async def create_user(self, user: User) -> User:
         return await self.add(user)
 
+    async def create(self, user: User) -> User:
+        return await self.add(user)
+
     async def get_customers(self) -> List[User]:
         cursor = self.db["users"].find({"role": UserRole.CUSTOMER.value}).sort("full_name", 1)
         users = []
@@ -43,6 +46,20 @@ class UserRepository(BaseRepository):
 
     async def get_by_telegram_id(self, telegram_id: int) -> Optional[User]:
         doc = await self.db["users"].find_one({"telegram_id": telegram_id})
+        if not doc:
+            return None
+        user = User.from_dict(doc)
+        await self._populate_hotel(user)
+        return user
+
+    async def get_by_username(self, username: str) -> Optional[User]:
+        if not username:
+            return None
+        import re
+        clean = username.lstrip("@").strip()
+        doc = await self.db["users"].find_one({
+            "username": {"$regex": f"^{re.escape(clean)}$", "$options": "i"}
+        })
         if not doc:
             return None
         user = User.from_dict(doc)

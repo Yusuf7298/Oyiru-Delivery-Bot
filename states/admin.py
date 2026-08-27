@@ -24,3 +24,9 @@ class ProductStates(StatesGroup):
     editing_unit = State()
     editing_category = State()
 
+
+class DriverRegistrationStates(StatesGroup):
+    waiting_name = State()
+    waiting_phone = State()
+    waiting_telegram_id = State()
+

@@ -138,5 +138,8 @@
     "support_telegram_label": "💬 *Teleegiraama*",
     "btn_chat_telegram": "💬 Teleegiraamaan Haasawi",
     "btn_call_support": "📞 Bilbili",
-    "btn_email_support": "✉️ Imeelii Ergi"
+    "btn_email_support": "✉️ Imeelii Ergi",
+    "btn_add_driver": "➕ Konkolaachisaa Galmeessi",
+    "btn_driver_invite_link": "🔗 Liankii Afeerraa Konkolaachisaa",
+    "btn_store_drivers": "🚚 Konkolaachiftoota"
 }

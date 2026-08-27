@@ -423,3 +423,18 @@ async def view_file(callback: CallbackQuery, session: AsyncSession):
     file_input = FSInputFile(full_path)
     caption = f"📄 {order.original_filename or 'Document'} — Order: {order.order_number}"
     await callback.message.reply_document(file_input, caption=caption) # type: ignore
+
+
+STORE_DRIVERS_BTNS = ["🚚 Drivers", "🚚 ሾፌሮች", "🚚 Konkolaachiftoota"]
+
+@router.message(F.text.in_(STORE_DRIVERS_BTNS))
+async def store_manager_drivers(message: Message, session: AsyncSession, lang: str = "en"):
+    user_repo = UserRepository(session)
+    drivers = await user_repo.get_by_role("driver")
+    from keyboards.store_manager import store_manager_drivers_keyboard
+    await message.answer(
+        f"🚚 *Delivery Drivers ({len(drivers)} total)*\n\n"
+        "Tap below to register a new driver or share the invite link:",
+        reply_markup=store_manager_drivers_keyboard(drivers, lang=lang),
+        parse_mode="Markdown"
+    )

@@ -138,5 +138,8 @@
     "support_telegram_label": "💬 *ቴሌግራም*",
     "btn_chat_telegram": "💬 በቴሌግራም አውራ",
     "btn_call_support": "📞 ደውል",
-    "btn_email_support": "✉️ ኢሜይል ላክ"
+    "btn_email_support": "✉️ ኢሜይል ላክ",
+    "btn_add_driver": "➕ ሾፌር መዝግብ",
+    "btn_driver_invite_link": "🔗 የሾፌር መጋበዣ ሊንክ",
+    "btn_store_drivers": "🚚 ሾፌሮች"
 }

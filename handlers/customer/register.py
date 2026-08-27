@@ -141,22 +141,22 @@ async def handle_phone(message: Message, state: FSMContext, session: AsyncSessio
             )
         return
 
+    is_driver = data.get("is_driver_register", False)
     is_hotel_admin = data.get("is_hotel_admin", False)
-    if is_hotel_admin:
+
+    if is_driver:
+        user_role = "driver"
+        role_label = "Delivery Driver"
+        hotel_id = None
+    elif is_hotel_admin:
         claimed_ids = await user_repo.get_claimed_hotel_ids()
         if hotel_id in claimed_ids:
-            await state.clear()
-            await message.answer(
-                "⚠️ *Hotel Already Claimed*\n\n"
-                "This hotel has already been claimed by a Hotel Administrator.\n"
-                "To register as staff for this hotel, please ask your Hotel Administrator for your hotel staff invite link.",
-                reply_markup=ReplyKeyboardRemove(),
-                parse_mode="Markdown"
-            )
-            return
-
-    user_role = "hotel_admin" if is_hotel_admin else "customer"
-    role_label = "Hotel Administrator" if is_hotel_admin else "Hotel Ordering Staff"
+            is_hotel_admin = False
+        user_role = "hotel_admin" if is_hotel_admin else "customer"
+        role_label = "Hotel Administrator" if is_hotel_admin else "Hotel Ordering Staff"
+    else:
+        user_role = "customer"
+        role_label = "Hotel Ordering Staff"
 
     auth = AuthService(user_repo)
     user = await auth.register_user(

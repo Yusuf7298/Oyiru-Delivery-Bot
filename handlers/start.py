@@ -50,6 +50,16 @@ async def start(message: Message, state: FSMContext, session: AsyncSession, lang
     from states.registration import RegistrationState
     hotel_repo = HotelRepository(session)
 
+    if payload and payload in ("driver", "driver_join", "join_driver"):
+        await state.update_data(hotel_id=None, is_driver_register=True, is_hotel_admin=False, is_staff_invite=False)
+        await state.set_state(RegistrationState.full_name)
+        await message.answer(
+            "🚚 *Welcome to Oyiru Delivery Driver Registration!*\n\n"
+            "Please enter your *full name* to start registration:",
+            parse_mode="Markdown"
+        )
+        return
+
     if payload and (payload.startswith("join_") or payload.startswith("hotel_")):
         raw_id = payload.replace("join_", "").replace("hotel_", "")
         if raw_id.isdigit():
@@ -64,20 +74,19 @@ async def start(message: Message, state: FSMContext, session: AsyncSession, lang
                 )
                 return
 
-    # Normal registration: Show only unclaimed active hotels for Hotel Admin registration
-    claimed_ids = await user_repo.get_claimed_hotel_ids()
-    unclaimed_hotels = await hotel_repo.get_unclaimed_active_hotels(claimed_ids)
+    # Normal registration: Always show all active hotels so anyone can register
+    all_hotels = await hotel_repo.get_all_active() # type: ignore
 
-    if not unclaimed_hotels:
+    if not all_hotels:
         await message.answer(
-            t("no_unclaimed_hotels_msg", lang),
+            "⚠️ No hotels available for registration. Please contact the administrator.",
             parse_mode="Markdown"
         )
         return
 
     await message.answer(
-        t("select_hotel_admin_title", lang),
-        reply_markup=hotels_keyboard(unclaimed_hotels),
+        t("select_hotel_title", lang),
+        reply_markup=hotels_keyboard(all_hotels),
         parse_mode="Markdown"
     )
 
