@@ -72,22 +72,53 @@ def _order_detail_block(order, customer=None) -> str:
     )
 
 
+import re
+
+def _extract_chat_ids(targets) -> list[int]:
+    if targets is None:
+        return []
+    if isinstance(targets, (int, float)):
+        return [int(targets)] if int(targets) != 0 else []
+
+    result = []
+    items = targets if isinstance(targets, (list, tuple, set)) else [targets]
+    for item in items:
+        if item is None:
+            continue
+        if isinstance(item, (int, float)):
+            val = int(item)
+            if val != 0 and val not in result:
+                result.append(val)
+            continue
+        str_val = str(item).strip()
+        if not str_val or str_val == "0":
+            continue
+        for part in re.split(r"[,;\s]+", str_val):
+            part = part.strip()
+            if not part or part == "0":
+                continue
+            try:
+                val = int(part)
+                if val != 0 and val not in result:
+                    result.append(val)
+            except ValueError:
+                pass
+    return result
+
+
 async def _send_order_media(
     bot: Bot,
-    chat_id,
+    chat_id: int,
     caption: str,
     telegram_file_id: str = None,
     file_path: str = None,
     file_type: str = None,
     **kwargs
 ):
-    if not chat_id:
+    cid = int(chat_id)
+    if cid == 0:
         return
     try:
-        cid = int(str(chat_id).strip())
-        if cid == 0:
-            return
-
         # Ensure caption fits Telegram's 1024 character limit for media
         safe_caption = caption
         overflow_text = None
@@ -112,7 +143,7 @@ async def _send_order_media(
                     await bot.send_message(chat_id=cid, text=overflow_text, **kwargs)
                 return
             except Exception as exc_tfid:
-                logging.warning(f"send_photo/document with telegram_file_id to {cid} failed: {exc_tfid}. Trying local file_path.")
+                logging.debug(f"send_photo/document with telegram_file_id to {cid} failed: {exc_tfid}. Trying local file_path.")
 
         # 2. Try sending via local file_path
         if file_path:
@@ -134,61 +165,65 @@ async def _send_order_media(
                         await bot.send_message(chat_id=cid, text=overflow_text, **kwargs)
                     return
                 except Exception as exc_fp:
-                    logging.warning(f"send_photo/document with FSInputFile to {cid} failed: {exc_fp}. Fallback to text.")
+                    logging.debug(f"send_photo/document with FSInputFile to {cid} failed: {exc_fp}. Fallback to text.")
 
         # 3. Fallback to text message if media could not be sent
         await bot.send_message(chat_id=cid, text=caption, **kwargs)
     except Exception as e:
-        logging.error(f"Notification to {chat_id} failed: {e}")
+        err_msg = str(e)
+        if "chat not found" in err_msg.lower():
+            logging.info(f"Notification skipped for chat {cid} (bot not in chat or channel not created yet).")
+        elif "blocked by the user" in err_msg.lower():
+            logging.info(f"Notification skipped: User {cid} has blocked the bot.")
+        else:
+            logging.warning(f"Notification to {cid} failed: {e}")
 
 
-async def _send(bot: Bot, chat_id, text: str, **kwargs):
-    if not chat_id:
+async def _send(bot: Bot, chat_id: int, text: str, **kwargs):
+    cid = int(chat_id)
+    if cid == 0:
         return
     try:
-        cid = int(str(chat_id).strip())
-        if cid == 0:
-            return
         await bot.send_message(chat_id=cid, text=text, **kwargs)
     except Exception as e:
-        logging.error(f"Notification to {chat_id} failed: {e}")
+        err_msg = str(e)
+        if "chat not found" in err_msg.lower():
+            logging.info(f"Notification skipped for chat {cid} (bot not in chat or channel not created yet).")
+        elif "blocked by the user" in err_msg.lower():
+            logging.info(f"Notification skipped: User {cid} has blocked the bot.")
+        else:
+            logging.warning(f"Notification to {cid} failed: {e}")
 
 
-async def _broadcast(bot: Bot, targets: set, text: str, **kwargs):
-    seen = set()
-    for t in targets:
-        key = str(t).strip()
-        if key and key != "0" and key not in seen:
-            seen.add(key)
-            await _send(bot, key, text, **kwargs)
+async def _broadcast(bot: Bot, targets, text: str, **kwargs):
+    ids = _extract_chat_ids(targets)
+    for cid in ids:
+        await _send(bot, cid, text, **kwargs)
 
 
 async def _broadcast_order(
     bot: Bot,
-    targets: set,
+    targets,
     text: str,
     telegram_file_id: str = None,
     file_path: str = None,
     file_type: str = None,
     **kwargs
 ):
-    seen = set()
-    for t in targets:
-        key = str(t).strip()
-        if key and key != "0" and key not in seen:
-            seen.add(key)
-            if telegram_file_id or file_path:
-                await _send_order_media(
-                    bot,
-                    key,
-                    caption=text,
-                    telegram_file_id=telegram_file_id,
-                    file_path=file_path,
-                    file_type=file_type,
-                    **kwargs
-                )
-            else:
-                await _send(bot, key, text, **kwargs)
+    ids = _extract_chat_ids(targets)
+    for cid in ids:
+        if telegram_file_id or file_path:
+            await _send_order_media(
+                bot,
+                cid,
+                caption=text,
+                telegram_file_id=telegram_file_id,
+                file_path=file_path,
+                file_type=file_type,
+                **kwargs
+            )
+        else:
+            await _send(bot, cid, text, **kwargs)
 
 async def notify_new_order(bot: Bot, order, customer):
     text = (

@@ -6,7 +6,11 @@ from database.models.order import OrderStatus
 from database.repositories.order_repository import OrderRepository
 from database.repositories.user_repository import UserRepository
 from filters.role_filter import RoleFilter
-from services.notification_service import notify_driver_assigned
+from services.notification_service import (
+    notify_driver_assigned,
+    notify_customer_status_update,
+    notify_sales_managers,
+)
 
 router = Router()
 # Both admin and store manager (hotel role) can assign drivers
