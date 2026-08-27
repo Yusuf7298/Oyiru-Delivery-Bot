@@ -108,97 +108,98 @@ def _extract_chat_ids(targets) -> list[int]:
 
 async def _send_order_media(
     bot: Bot,
-    chat_id: int,
+    chat_id,
     caption: str,
     telegram_file_id: str = None,
     file_path: str = None,
     file_type: str = None,
     **kwargs
 ):
-    cid = int(chat_id)
-    if cid == 0:
+    ids = _extract_chat_ids(chat_id)
+    if not ids:
         return
-    try:
-        # Ensure caption fits Telegram's 1024 character limit for media
-        safe_caption = caption
-        overflow_text = None
-        if len(caption) > 1020:
-            safe_caption = caption[:1015] + "..."
-            overflow_text = "..." + caption[1015:]
 
-        # Detect photo file type
-        ext = ""
-        if file_path:
-            ext = os.path.splitext(file_path)[1].lower()
-        is_photo = (file_type == "photo" or ext in [".jpg", ".jpeg", ".png", ".webp"])
+    # Ensure caption fits Telegram's 1024 character limit for media
+    safe_caption = caption
+    overflow_text = None
+    if len(caption) > 1020:
+        safe_caption = caption[:1015] + "..."
+        overflow_text = "..." + caption[1015:]
 
-        # 1. Try sending via telegram_file_id
-        if telegram_file_id:
-            try:
-                if is_photo:
-                    await bot.send_photo(chat_id=cid, photo=telegram_file_id, caption=safe_caption, **kwargs)
-                else:
-                    await bot.send_document(chat_id=cid, document=telegram_file_id, caption=safe_caption, **kwargs)
-                if overflow_text:
-                    await bot.send_message(chat_id=cid, text=overflow_text, **kwargs)
-                return
-            except Exception as exc_tfid:
-                logging.debug(f"send_photo/document with telegram_file_id to {cid} failed: {exc_tfid}. Trying local file_path.")
+    # Detect photo file type
+    ext = ""
+    if file_path:
+        ext = os.path.splitext(file_path)[1].lower()
+    is_photo = (file_type == "photo" or ext in [".jpg", ".jpeg", ".png", ".webp"])
 
-        # 2. Try sending via local file_path
-        if file_path:
-            candidate_paths = [
-                os.path.join(os.getcwd(), file_path) if not os.path.isabs(file_path) else file_path,
-                os.path.join(os.getcwd(), "uploads", os.path.basename(file_path)),
-                file_path,
-            ]
-            valid_path = next((p for p in candidate_paths if os.path.exists(p)), None)
-            if valid_path:
-                from aiogram.types import FSInputFile
-                file_input = FSInputFile(valid_path)
+    for cid in ids:
+        try:
+            # 1. Try sending via telegram_file_id
+            if telegram_file_id:
                 try:
                     if is_photo:
-                        await bot.send_photo(chat_id=cid, photo=file_input, caption=safe_caption, **kwargs)
+                        await bot.send_photo(chat_id=cid, photo=telegram_file_id, caption=safe_caption, **kwargs)
                     else:
-                        await bot.send_document(chat_id=cid, document=file_input, caption=safe_caption, **kwargs)
+                        await bot.send_document(chat_id=cid, document=telegram_file_id, caption=safe_caption, **kwargs)
                     if overflow_text:
                         await bot.send_message(chat_id=cid, text=overflow_text, **kwargs)
-                    return
-                except Exception as exc_fp:
-                    logging.debug(f"send_photo/document with FSInputFile to {cid} failed: {exc_fp}. Fallback to text.")
+                    continue
+                except Exception as exc_tfid:
+                    logging.debug(f"send_photo/document with telegram_file_id to {cid} failed: {exc_tfid}. Trying local file_path.")
 
-        # 3. Fallback to text message if media could not be sent
-        await bot.send_message(chat_id=cid, text=caption, **kwargs)
-    except Exception as e:
-        err_msg = str(e)
-        if "chat not found" in err_msg.lower():
-            logging.info(f"Notification skipped for chat {cid} (bot not in chat or channel not created yet).")
-        elif "blocked by the user" in err_msg.lower():
-            logging.info(f"Notification skipped: User {cid} has blocked the bot.")
-        else:
-            logging.warning(f"Notification to {cid} failed: {e}")
+            # 2. Try sending via local file_path
+            if file_path:
+                candidate_paths = [
+                    os.path.join(os.getcwd(), file_path) if not os.path.isabs(file_path) else file_path,
+                    os.path.join(os.getcwd(), "uploads", os.path.basename(file_path)),
+                    file_path,
+                ]
+                valid_path = next((p for p in candidate_paths if os.path.exists(p)), None)
+                if valid_path:
+                    from aiogram.types import FSInputFile
+                    file_input = FSInputFile(valid_path)
+                    try:
+                        if is_photo:
+                            await bot.send_photo(chat_id=cid, photo=file_input, caption=safe_caption, **kwargs)
+                        else:
+                            await bot.send_document(chat_id=cid, document=file_input, caption=safe_caption, **kwargs)
+                        if overflow_text:
+                            await bot.send_message(chat_id=cid, text=overflow_text, **kwargs)
+                        continue
+                    except Exception as exc_fp:
+                        logging.debug(f"send_photo/document with FSInputFile to {cid} failed: {exc_fp}. Fallback to text.")
+
+            # 3. Fallback to text message if media could not be sent
+            await bot.send_message(chat_id=cid, text=caption, **kwargs)
+        except Exception as e:
+            err_msg = str(e)
+            if "chat not found" in err_msg.lower():
+                logging.info(f"Notification skipped for chat {cid} (bot not in chat or channel not created yet).")
+            elif "blocked by the user" in err_msg.lower():
+                logging.info(f"Notification skipped: User {cid} has blocked the bot.")
+            else:
+                logging.warning(f"Notification to {cid} failed: {e}")
 
 
-async def _send(bot: Bot, chat_id: int, text: str, **kwargs):
-    cid = int(chat_id)
-    if cid == 0:
+async def _send(bot: Bot, chat_id, text: str, **kwargs):
+    ids = _extract_chat_ids(chat_id)
+    if not ids:
         return
-    try:
-        await bot.send_message(chat_id=cid, text=text, **kwargs)
-    except Exception as e:
-        err_msg = str(e)
-        if "chat not found" in err_msg.lower():
-            logging.info(f"Notification skipped for chat {cid} (bot not in chat or channel not created yet).")
-        elif "blocked by the user" in err_msg.lower():
-            logging.info(f"Notification skipped: User {cid} has blocked the bot.")
-        else:
-            logging.warning(f"Notification to {cid} failed: {e}")
+    for cid in ids:
+        try:
+            await bot.send_message(chat_id=cid, text=text, **kwargs)
+        except Exception as e:
+            err_msg = str(e)
+            if "chat not found" in err_msg.lower():
+                logging.info(f"Notification skipped for chat {cid} (bot not in chat or channel not created yet).")
+            elif "blocked by the user" in err_msg.lower():
+                logging.info(f"Notification skipped: User {cid} has blocked the bot.")
+            else:
+                logging.warning(f"Notification to {cid} failed: {e}")
 
 
 async def _broadcast(bot: Bot, targets, text: str, **kwargs):
-    ids = _extract_chat_ids(targets)
-    for cid in ids:
-        await _send(bot, cid, text, **kwargs)
+    await _send(bot, targets, text, **kwargs)
 
 
 async def _broadcast_order(
@@ -210,20 +211,15 @@ async def _broadcast_order(
     file_type: str = None,
     **kwargs
 ):
-    ids = _extract_chat_ids(targets)
-    for cid in ids:
-        if telegram_file_id or file_path:
-            await _send_order_media(
-                bot,
-                cid,
-                caption=text,
-                telegram_file_id=telegram_file_id,
-                file_path=file_path,
-                file_type=file_type,
-                **kwargs
-            )
-        else:
-            await _send(bot, cid, text, **kwargs)
+    await _send_order_media(
+        bot,
+        targets,
+        caption=text,
+        telegram_file_id=telegram_file_id,
+        file_path=file_path,
+        file_type=file_type,
+        **kwargs
+    )
 
 async def notify_new_order(bot: Bot, order, customer):
     text = (
@@ -396,24 +392,21 @@ async def notify_returned_products(bot: Bot, order, description: str, photo_file
         f"📦 Returned Items:\n{description}"
     )
 
-    targets = {QUALITY_CONTROL_GROUP_ID, ADMIN_ID}
-    for target in targets:
-        key = str(target).strip()
-        if not key or key == "0":
-            continue
+    targets = _extract_chat_ids({QUALITY_CONTROL_GROUP_ID, ADMIN_ID})
+    for cid in targets:
         if photo_file_id:
             try:
                 await bot.send_photo(
-                    chat_id=int(key),
+                    chat_id=cid,
                     photo=photo_file_id,
                     caption=text,
                     parse_mode="Markdown",
                 )
             except Exception as e:
-                logging.error(f"QC photo to {key} failed: {e}")
-                await _send(bot, key, text, parse_mode="Markdown")
+                logging.info(f"QC photo to {cid} skipped or failed: {e}")
+                await _send(bot, cid, text, parse_mode="Markdown")
         else:
-            await _send(bot, key, text, parse_mode="Markdown")
+            await _send(bot, cid, text, parse_mode="Markdown")
 
 async def notify_quality_control(bot: Bot, order, rating: int = None, feedback: str = None, returned_items: str = None): # type: ignore
     text = (
@@ -430,4 +423,4 @@ async def notify_quality_control(bot: Bot, order, rating: int = None, feedback: 
     if returned_items:
         text += f"🔄 Returned Items:\n{returned_items}\n"
 
-    await _send(bot, QUALITY_CONTROL_GROUP_ID, text, parse_mode="Markdown")
+    await _broadcast(bot, QUALITY_CONTROL_GROUP_ID, text, parse_mode="Markdown")
