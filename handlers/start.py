@@ -34,6 +34,14 @@ async def start(message: Message, state: FSMContext, session: AsyncSession, lang
     user_repo = UserRepository(session)
     auth = AuthService(user_repo)
     user = await auth.user_exists(message.from_user.id)
+    if not user and message.from_user.username:
+        pre_user = await user_repo.get_by_username(message.from_user.username)
+        if pre_user and (not pre_user.telegram_id or pre_user.telegram_id == message.from_user.id):
+            pre_user.telegram_id = message.from_user.id
+            pre_user.username = message.from_user.username
+            await user_repo.add(pre_user)
+            user = pre_user
+
     if user:
         if message.from_user.username and message.from_user.username != user.username:
             user.username = message.from_user.username

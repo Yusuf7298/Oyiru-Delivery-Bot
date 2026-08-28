@@ -105,8 +105,9 @@ async def handle_phone(message: Message, state: FSMContext, session: AsyncSessio
         return
 
     data = await state.get_data()
+    is_driver = data.get("is_driver_register", False)
     hotel_id: int | None = data.get("hotel_id")
-    if not hotel_id:
+    if not is_driver and not hotel_id:
         await state.clear()
         await message.answer(
             "❌ Session expired. Please start again with /start.",

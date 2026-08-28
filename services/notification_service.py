@@ -480,71 +480,71 @@ async def notify_sales_managers(bot: Bot, order, action: str):
     )
 
 async def notify_operations(bot: Bot, order, rating: int, feedback: str = None): # type: ignore
+    import html
     stars = "⭐" * rating + "☆" * (5 - rating)
     driver_name = getattr(order, "driver_name", None)
-    driver_line = f"\n🚗 Driver: {driver_name}" if driver_name else ""
+    driver_line = f"\n🚗 <b>Driver</b>: {html.escape(str(driver_name))}" if driver_name else ""
     hotel_name = order.hotel.name if getattr(order, "hotel", None) else "—"
     cust_name = order.customer.full_name if getattr(order, "customer", None) else "—"
     text = (
-        f"📋 Customer Feedback Report\n\n"
-        f"🆔 Order: `{order.order_number}`\n"
-        f"🏨 Hotel: {hotel_name}\n"
-        f"👤 Customer: {cust_name}"
+        f"📋 <b>Customer Feedback Report</b>\n\n"
+        f"🆔 <b>Order</b>: <code>{html.escape(str(order.order_number))}</code>\n"
+        f"🏨 <b>Hotel</b>: {html.escape(str(hotel_name))}\n"
+        f"👤 <b>Customer</b>: {html.escape(str(cust_name))}"
         f"{driver_line}\n"
-        f"⏰ Time: {_now()}\n\n"
-        f"⭐ Rating: {stars}  ({rating}/5)\n"
+        f"⏰ <b>Time</b>: {_now()}\n\n"
+        f"⭐ <b>Rating</b>: {stars}  ({rating}/5)\n"
     )
     if feedback:
-        text += f"💬 Feedback: {feedback}\n"
+        text += f"💬 <b>Feedback</b>: {html.escape(str(feedback))}\n"
 
     targets = {*SUPER_ADMIN_IDS, ADMIN_ID, QUALITY_CONTROL_GROUP_ID, OPERATIONS_GROUP_ID}
-    await _broadcast(bot, targets, text, parse_mode="Markdown")
+    await _broadcast(bot, targets, text, parse_mode="HTML")
 
 
-async def notify_returned_products(bot: Bot, order, description: str, photo_file_id: str = None): # type: ignore
-    driver_name = getattr(order, "driver_name", None)
-    dp = getattr(order, "delivery_partner", None)
+async def notify_returned_products(bot: Bot, order, description: str, photo_file_id: str = None, customer = None): # type: ignore
+    import html
+    order_num = getattr(order, "order_number", "—") if order else "—"
+    hotel_name = order.hotel.name if order and getattr(order, "hotel", None) else "—"
+    if not customer and order and getattr(order, "customer", None):
+        customer = order.customer
+    cust_name = customer.full_name if customer else "—"
+
+    driver_name = getattr(order, "driver_name", None) if order else None
+    dp = getattr(order, "delivery_partner", None) if order else None
     if not driver_name and dp:
         driver_name = dp.full_name
-    driver_phone = getattr(order, "driver_phone", None) or (dp.phone if dp else None)
-    driver_line = f"\n🚗 Driver: {driver_name}" if driver_name else ""
+    driver_phone = getattr(order, "driver_phone", None) if order else (dp.phone if dp else None)
+    driver_line = f"\n🚗 <b>Driver</b>: {html.escape(str(driver_name))}" if driver_name else ""
     if driver_phone:
-        driver_line += f" (`{driver_phone}`)"
+        driver_line += f" (<code>{html.escape(str(driver_phone))}</code>)"
 
-    hotel_name = order.hotel.name if getattr(order, "hotel", None) else "—"
-    cust_name = order.customer.full_name if getattr(order, "customer", None) else "—"
     text = (
-        f"🔄 *Returned Products Report*\n\n"
-        f"🆔 Order: `{order.order_number}`\n"
-        f"🏨 Hotel: {hotel_name}\n"
-        f"👤 Customer: {cust_name}"
+        f"🔄 <b>Returned Products Report</b>\n\n"
+        f"🆔 <b>Order</b>: <code>{html.escape(str(order_num))}</code>\n"
+        f"🏨 <b>Hotel</b>: {html.escape(str(hotel_name))}\n"
+        f"👤 <b>Customer</b>: {html.escape(str(cust_name))}"
         f"{driver_line}\n"
-        f"⏰ Time: {_now()}\n\n"
-        f"📦 Returned Items:\n{description}"
+        f"⏰ <b>Time</b>: {_now()}\n\n"
+        f"📦 <b>Returned Items / Reason</b>:\n{html.escape(str(description))}"
     )
 
-    targets = _extract_chat_ids({*SUPER_ADMIN_IDS, ADMIN_ID, QUALITY_CONTROL_GROUP_ID})
+    targets = _extract_chat_ids({*SUPER_ADMIN_IDS, ADMIN_ID, QUALITY_CONTROL_GROUP_ID, OPERATIONS_GROUP_ID})
     for cid in targets:
         if photo_file_id:
             try:
+                caption_safe = text if len(text) <= 1024 else text[:1020] + "…"
                 await bot.send_photo(
                     chat_id=cid,
                     photo=photo_file_id,
-                    caption=text,
-                    parse_mode="Markdown",
+                    caption=caption_safe,
+                    parse_mode="HTML",
                 )
                 continue
             except Exception as e:
-                err_s = str(e).lower()
-                if "can't parse entities" in err_s or "entity" in err_s:
-                    try:
-                        await bot.send_photo(chat_id=cid, photo=photo_file_id, caption=text)
-                        continue
-                    except Exception:
-                        pass
                 logging.warning(f"QC photo to {cid} failed: {e}")
 
-        await _send(bot, cid, text, parse_mode="Markdown")
+        await _send(bot, cid, text, parse_mode="HTML")
 
 async def notify_quality_control(
     bot: Bot,
@@ -553,55 +553,55 @@ async def notify_quality_control(
     feedback: str = None,
     returned_items: str = None,
     photo_file_id: str = None,
+    customer = None,
 ):
-    driver_name = getattr(order, "driver_name", None)
-    dp = getattr(order, "delivery_partner", None)
+    import html
+    order_num = getattr(order, "order_number", "—") if order else "—"
+    hotel_name = order.hotel.name if order and getattr(order, "hotel", None) else "—"
+    if not customer and order and getattr(order, "customer", None):
+        customer = order.customer
+    cust_name = customer.full_name if customer else "—"
+
+    driver_name = getattr(order, "driver_name", None) if order else None
+    dp = getattr(order, "delivery_partner", None) if order else None
     if not driver_name and dp:
         driver_name = dp.full_name
-    driver_phone = getattr(order, "driver_phone", None) or (dp.phone if dp else None)
-    driver_line = f"\n🚗 Driver: {driver_name}" if driver_name else ""
+    driver_phone = getattr(order, "driver_phone", None) if order else (dp.phone if dp else None)
+    driver_line = f"\n🚗 <b>Driver</b>: {html.escape(str(driver_name))}" if driver_name else ""
     if driver_phone:
-        driver_line += f" (`{driver_phone}`)"
+        driver_line += f" (<code>{html.escape(str(driver_phone))}</code>)"
 
-    hotel_name = order.hotel.name if getattr(order, "hotel", None) else "—"
-    cust_name = order.customer.full_name if getattr(order, "customer", None) else "—"
     text = (
-        f"🔒 *Quality Control Report*\n\n"
-        f"🆔 Order: `{order.order_number}`\n"
-        f"🏨 Hotel: {hotel_name}\n"
-        f"👤 Customer: {cust_name}"
+        f"🔒 <b>Quality Control Report</b>\n\n"
+        f"🆔 <b>Order</b>: <code>{html.escape(str(order_num))}</code>\n"
+        f"🏨 <b>Hotel</b>: {html.escape(str(hotel_name))}\n"
+        f"👤 <b>Customer</b>: {html.escape(str(cust_name))}"
         f"{driver_line}\n"
-        f"⏰ Time: {_now()}\n\n"
+        f"⏰ <b>Time</b>: {_now()}\n\n"
     )
     if rating is not None:
         stars_filled = "⭐" * rating
         stars_empty = "☆" * (5 - rating)
-        text += f"⭐ Rating: {stars_filled}{stars_empty} ({rating}/5)\n"
+        text += f"⭐ <b>Rating</b>: {stars_filled}{stars_empty} ({rating}/5)\n"
     if feedback:
-        text += f"💬 Feedback: {feedback}\n"
+        text += f"💬 <b>Feedback</b>: {html.escape(str(feedback))}\n"
     if returned_items:
-        text += f"🔄 Returned Items: {returned_items}\n"
+        text += f"🔄 <b>Returned Items</b>:\n{html.escape(str(returned_items))}\n"
 
-    targets = _extract_chat_ids({*SUPER_ADMIN_IDS, ADMIN_ID, QUALITY_CONTROL_GROUP_ID})
+    targets = _extract_chat_ids({*SUPER_ADMIN_IDS, ADMIN_ID, QUALITY_CONTROL_GROUP_ID, OPERATIONS_GROUP_ID})
     for cid in targets:
         if photo_file_id:
             try:
+                caption_safe = text if len(text) <= 1024 else text[:1020] + "…"
                 await bot.send_photo(
                     chat_id=cid,
                     photo=photo_file_id,
-                    caption=text,
-                    parse_mode="Markdown",
+                    caption=caption_safe,
+                    parse_mode="HTML",
                 )
                 continue
             except Exception as e:
-                err_s = str(e).lower()
-                if "can't parse entities" in err_s or "entity" in err_s:
-                    try:
-                        await bot.send_photo(chat_id=cid, photo=photo_file_id, caption=text)
-                        continue
-                    except Exception:
-                        pass
                 logging.warning(f"QC photo send to {cid} failed: {e}")
 
-        await _send(bot, cid, text, parse_mode="Markdown")
+        await _send(bot, cid, text, parse_mode="HTML")
 

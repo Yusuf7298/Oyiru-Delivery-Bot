@@ -151,31 +151,37 @@ async def _save_and_notify(message: Message, state: FSMContext,
                             session: AsyncSession, photo_file_id: str = None, # type: ignore
                             telegram_id: int = None): # type: ignore
     data = await state.get_data()
-    order_id    = data.get("return_order_id")
+    order_id = data.get("return_order_id")
     description = data.get("return_description", "")
     await state.clear()
+
+    order_id_int = int(order_id) if order_id else None
     returned = ReturnedItem(
-        order_id=order_id,
+        order_id=order_id_int,
         description=description,
         photo_file_id=photo_file_id,
     )
     ri_repo = ReturnedItemRepository(session)
     await ri_repo.create(returned)
-    order_repo = OrderRepository(session)
-    order = await order_repo.get_order(order_id) # type: ignore
 
-    if order:
-        try:
-            await notify_returned_products(
-                message.bot, order, description, # type: ignore
-                photo_file_id=photo_file_id,
-            )
-        except Exception as e:
-            logger.error(f"QC notification failed for return on {order.order_number}: {e}")
+    order_repo = OrderRepository(session)
+    order = await order_repo.get_order(order_id_int) if order_id_int else None
 
     tid = telegram_id or (message.from_user.id if message.from_user else message.chat.id)
     user_repo = UserRepository(session)
-    customer  = await user_repo.get_by_telegram_id(tid)
+    customer = await user_repo.get_by_telegram_id(tid)
+
+    try:
+        await notify_returned_products(
+            message.bot, # type: ignore
+            order=order,
+            description=description,
+            photo_file_id=photo_file_id,
+            customer=customer,
+        )
+    except Exception as e:
+        logger.error(f"QC notification failed for return on order {order_id_int}: {e}")
+
     user_lang = getattr(customer, "language", "en") or "en"
     role_val = customer.role.value if customer and hasattr(customer.role, "value") else (str(customer.role) if customer else "")
     if role_val in ("hotel_admin", "hotel"):
