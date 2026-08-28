@@ -12,3 +12,4 @@ class OrderState(StatesGroup):
     waiting_for_return_order   = State()   
     waiting_for_return_desc    = State()  
     waiting_for_return_photo   = State()
+    waiting_for_delivery_proof = State()

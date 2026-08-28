@@ -143,5 +143,6 @@
     "btn_driver_invite_link": "🔗 Driver Invite Link",
     "btn_store_drivers": "🚚 Drivers",
     "select_hotel_title": "🏨 *Select Your Hotel*\n\nPlease choose your hotel to begin:",
-    "btn_change_hotel": "🏨 Change Hotel"
+    "btn_change_hotel": "🏨 Change Hotel",
+    "btn_confirm_ordered_items": "✅ Confirm All Ordered Items Delivered"
 }

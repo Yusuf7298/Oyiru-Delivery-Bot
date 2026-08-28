@@ -143,5 +143,6 @@
     "btn_driver_invite_link": "🔗 የሾፌር መጋበዣ ሊንክ",
     "btn_store_drivers": "🚚 ሾፌሮች",
     "select_hotel_title": "🏨 *ሆቴልዎን ይምረጡ*\n\nለመጀመር እባክዎን ሆቴልዎን ይምረጡ፦",
-    "btn_change_hotel": "🏨 ሆቴል ቀይር"
+    "btn_change_hotel": "🏨 ሆቴል ቀይር",
+    "btn_confirm_ordered_items": "✅ የታዘዙትን እቃዎች በሙሉ ማድረሴን አረጋግጥ"
 }

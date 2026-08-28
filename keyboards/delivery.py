@@ -27,3 +27,9 @@ def active_order_keyboard(order_id: int, lang: str = "en") -> InlineKeyboardMark
     builder.adjust(1)
     return builder.as_markup()
 
+def delivery_proof_keyboard(order_id: int, lang: str = "en") -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text=t("btn_cancel", lang), callback_data=f"drv_cancel_complete:{order_id}")
+    builder.adjust(1)
+    return builder.as_markup()
+

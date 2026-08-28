@@ -479,6 +479,58 @@ async def notify_sales_managers(bot: Bot, order, action: str):
         parse_mode="Markdown",
     )
 
+async def notify_sales_delivery_completed(
+    bot: Bot,
+    order,
+    delivered_items_summary: str,
+    photo_file_id: str = None,
+    driver_notes: str = None,
+):
+    import html
+    hotel_name = order.hotel.name if order and getattr(order, "hotel", None) else "—"
+    hotel_addr = order.hotel.address if order and getattr(order, "hotel", None) and order.hotel.address else None
+    addr_line = f" (📍 {html.escape(str(hotel_addr))})" if hotel_addr else ""
+
+    cust = getattr(order, "customer", None)
+    cust_name = cust.full_name if cust else "—"
+    cust_phone = cust.phone if cust and getattr(cust, "phone", None) else None
+    cust_phone_line = f" (📞 <code>{html.escape(str(cust_phone))}</code>)" if cust_phone else ""
+
+    dp = getattr(order, "delivery_partner", None)
+    driver_name = getattr(order, "driver_name", None) or (dp.full_name if dp else "—")
+    driver_phone = getattr(order, "driver_phone", None) or (dp.phone if dp and getattr(dp, "phone", None) else None)
+    driver_phone_line = f" (📞 <code>{html.escape(str(driver_phone))}</code>)" if driver_phone else ""
+
+    notes_line = f"\n📝 <b>Driver Notes</b>: {html.escape(str(driver_notes))}" if driver_notes else ""
+
+    text = (
+        f"🚚 <b>Delivery Completed & Proof of Delivery</b>\n\n"
+        f"🆔 <b>Order</b>: <code>{html.escape(str(order.order_number))}</code>\n"
+        f"🏨 <b>Hotel</b>: {html.escape(str(hotel_name))}{addr_line}\n"
+        f"👤 <b>Customer</b>: {html.escape(str(cust_name))}{cust_phone_line}\n"
+        f"🚗 <b>Driver</b>: {html.escape(str(driver_name))}{driver_phone_line}\n"
+        f"⏰ <b>Delivered At</b>: {_now()}\n\n"
+        f"📦 <b>Delivered Products / Items</b>:\n{html.escape(str(delivered_items_summary))}"
+        f"{notes_line}"
+    )
+
+    targets = _extract_chat_ids({*SUPER_ADMIN_IDS, ADMIN_ID, SALES_MANAGERS_GROUP_ID, OPERATIONS_GROUP_ID})
+    for cid in targets:
+        if photo_file_id:
+            try:
+                caption_safe = text if len(text) <= 1024 else text[:1020] + "…"
+                await bot.send_photo(
+                    chat_id=cid,
+                    photo=photo_file_id,
+                    caption=caption_safe,
+                    parse_mode="HTML",
+                )
+                continue
+            except Exception as e:
+                logging.warning(f"Sales delivery photo send to {cid} failed: {e}")
+
+        await _send(bot, cid, text, parse_mode="HTML")
+
 async def notify_operations(bot: Bot, order, rating: int, feedback: str = None): # type: ignore
     import html
     stars = "⭐" * rating + "☆" * (5 - rating)

@@ -1,17 +1,20 @@
 from datetime import datetime, timezone
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery, BufferedInputFile
+from aiogram.types import Message, CallbackQuery, BufferedInputFile, ContentType
+from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 from database.models.order import OrderStatus
 from database.repositories.order_repository import OrderRepository
 from database.repositories.user_repository import UserRepository
-from services.notification_service import notify_customer_status_update
+from services.notification_service import notify_customer_status_update, notify_sales_delivery_completed
 from keyboards.delivery import (
     delivery_menu,
     assigned_order_keyboard,
     active_order_keyboard,
+    delivery_proof_keyboard,
 )
+from states.order import OrderState
 from filters.role_filter import RoleFilter
 from utils.helpers import safe_edit_text_or_caption
 from utils.i18n import t
@@ -265,62 +268,193 @@ async def driver_accept(callback: CallbackQuery, session: AsyncSession, lang: st
     )
 
 @router.callback_query(F.data.startswith("drv_complete:"))
-async def driver_complete(callback: CallbackQuery, session: AsyncSession):
-    order_id = int(callback.data.split(":")[1]) # type: ignore
+async def driver_complete_prompt(callback: CallbackQuery, state: FSMContext, session: AsyncSession, lang: str = "en"):
+    order_id = int(callback.data.split(":")[1])  # type: ignore
     user_repo = UserRepository(session)
     driver = await user_repo.get_by_telegram_id(callback.from_user.id)
     if not driver:
-        try:
-            await callback.answer("Driver not found.", show_alert=True)
-        except Exception:
-            pass
+        await callback.answer("Driver not found.", show_alert=True)
         return
 
     repo = OrderRepository(session)
-    order, code = await repo.driver_complete(order_id, driver.id) # type: ignore
-    if code == "not_found":
-        try:
-            await callback.answer("Order not found.", show_alert=True)
-        except Exception:
-            pass
+    order = await repo.get_order(order_id)
+    if not order:
+        await callback.answer("Order not found.", show_alert=True)
         return
-    if code == "not_assigned":
-        try:
-            await callback.answer("⚠️ This order is not assigned to you.", show_alert=True)
-        except Exception:
-            pass
-        return
-    if code == "wrong_status":
-        try:
-            await callback.answer(
-                f"⚠️ Cannot complete — order is {order.status.value}.",
-                show_alert=True,
-            )
-        except Exception:
-            pass
+    if order.delivery_partner_id != driver.id:
+        await callback.answer("⚠️ This order is not assigned to you.", show_alert=True)
         return
 
-    try:
-        await callback.answer("Delivered! ✅")
-    except Exception:
-        pass
+    # Build summary of items for reference
+    items_summary = ""
+    if order.items:
+        items_summary = "\n".join(
+            f"• {item.product.name if getattr(item, 'product', None) else (getattr(item, 'product_name', None) or 'Item')} — {item.quantity} {item.unit or 'KG'}"
+            for item in order.items
+        )
+    elif order.file_path or order.telegram_file_id:
+        items_summary = f"📎 Document/Uploaded Order: {order.original_filename or 'File'}"
+    else:
+        items_summary = "—"
 
-    if order.customer:
-        try:
-            await notify_customer_status_update(callback.bot, order, order.customer.telegram_id) # type: ignore
-        except Exception as e:
-            logger.error(f"Customer notify failed: {e}")
+    await state.update_data(
+        delivery_order_id=order_id,
+        delivery_driver_id=driver.id,
+        delivery_items_default=items_summary,
+    )
+    await state.set_state(OrderState.waiting_for_delivery_proof)
 
-    logger.info(f"Driver {driver.full_name} ({driver.telegram_id}) completed {order.order_number}")
+    await callback.answer()
+    hotel_name = order.hotel.name if order.hotel else "—"
+    text = (
+        f"📦 *Delivery Confirmation for Order {order.order_number}*\n\n"
+        f"🏨 Hotel: *{hotel_name}*\n\n"
+        f"📋 *Ordered Items Reference*:\n{items_summary}\n\n"
+        "👉 *To complete delivery, please submit confirmation:*\n"
+        "1️⃣ ✍️ *Type & send the delivered products list* (e.g. `Tomato 50 KG, Onion 30 KG delivered`)\n"
+        "2️⃣ 📷 *Or upload a photo proof* of the delivered items or signed delivery slip\n\n"
+        "_(Your confirmation will be automatically forwarded to the Sales Team)_"
+    )
 
     await safe_edit_text_or_caption(
         callback,
-        f"🎉 Delivery Completed!\n\n"
-        f"{_order_card(order)}\n\n"
-        f"⏱ Accepted:  {_fmt_time(order.accepted_at)}\n"
-        f"✅ Delivered: {_fmt_time(order.delivered_at)}",
+        text,
+        reply_markup=delivery_proof_keyboard(order.id, lang=lang),
         parse_mode="Markdown",
     )
+
+
+@router.message(OrderState.waiting_for_delivery_proof, F.photo)
+async def driver_delivery_photo_received(message: Message, state: FSMContext, session: AsyncSession, lang: str = "en"):
+    photo_file_id = message.photo[-1].file_id
+    caption = message.caption.strip() if message.caption else None
+    data = await state.get_data()
+    delivered_items = caption or data.get("delivery_items_default") or "Photo proof of delivery submitted."
+    await _finish_driver_delivery(
+        message_or_callback=message,
+        state=state,
+        session=session,
+        delivered_items=delivered_items,
+        photo_file_id=photo_file_id,
+        driver_notes=caption or "Delivered with photo proof",
+        lang=lang,
+    )
+
+
+@router.message(OrderState.waiting_for_delivery_proof, F.text)
+async def driver_delivery_text_received(message: Message, state: FSMContext, session: AsyncSession, lang: str = "en"):
+    text_notes = message.text.strip()
+    if not text_notes:
+        await message.answer("❌ Please write the delivered products list or send a photo proof:")
+        return
+    await _finish_driver_delivery(
+        message_or_callback=message,
+        state=state,
+        session=session,
+        delivered_items=text_notes,
+        photo_file_id=None,
+        driver_notes=text_notes,
+        lang=lang,
+    )
+
+
+@router.callback_query(F.data.startswith("drv_cancel_complete:"))
+async def driver_cancel_complete(callback: CallbackQuery, state: FSMContext, session: AsyncSession, lang: str = "en"):
+    await state.clear()
+    order_id = int(callback.data.split(":")[1])  # type: ignore
+    repo = OrderRepository(session)
+    order = await repo.get_order(order_id)
+    await callback.answer("Delivery completion cancelled.")
+    if order:
+        await safe_edit_text_or_caption(
+            callback,
+            f"🚛 *Active Delivery*\n\n{_order_card(order)}",
+            reply_markup=active_order_keyboard(order.id, lang=lang),
+            parse_mode="Markdown",
+        )
+
+
+async def _finish_driver_delivery(
+    message_or_callback,
+    state: FSMContext,
+    session: AsyncSession,
+    delivered_items: str = None,
+    photo_file_id: str = None,
+    driver_notes: str = None,
+    telegram_id: int = None,
+    lang: str = "en",
+):
+    data = await state.get_data()
+    order_id = data.get("delivery_order_id")
+    await state.clear()
+
+    tid = telegram_id or (message_or_callback.from_user.id if getattr(message_or_callback, "from_user", None) else message_or_callback.chat.id)
+    user_repo = UserRepository(session)
+    driver = await user_repo.get_by_telegram_id(tid)
+    if not driver or not order_id:
+        return
+
+    repo = OrderRepository(session)
+    order, code = await repo.driver_complete(order_id, driver.id)
+    if code != "ok" or not order:
+        err_msg = f"⚠️ Could not complete order: {code}"
+        if isinstance(message_or_callback, CallbackQuery):
+            await message_or_callback.answer(err_msg, show_alert=True)
+        else:
+            await message_or_callback.answer(err_msg)
+        return
+
+    # Build delivered items summary
+    items_summary = delivered_items
+    if not items_summary:
+        if order.items:
+            items_summary = "\n".join(
+                f"• {item.product.name if getattr(item, 'product', None) else (getattr(item, 'product_name', None) or 'Item')} — {item.quantity} {item.unit or 'KG'}"
+                for item in order.items
+            )
+        elif order.file_path or order.telegram_file_id:
+            items_summary = f"📎 Document/Uploaded Order: {order.original_filename or 'File'}"
+        else:
+            items_summary = "All ordered items delivered in full."
+
+    # Automatically forward to Sales Group & Operations
+    try:
+        await notify_sales_delivery_completed(
+            bot=message_or_callback.bot,
+            order=order,
+            delivered_items_summary=items_summary,
+            photo_file_id=photo_file_id,
+            driver_notes=driver_notes,
+        )
+    except Exception as e:
+        logger.error(f"Failed to forward delivery confirmation to sales group: {e}")
+
+    # Notify customer of delivery & prompt for rating
+    if order.customer:
+        try:
+            await notify_customer_status_update(message_or_callback.bot, order, order.customer.telegram_id)
+        except Exception as e:
+            logger.error(f"Customer notify failed: {e}")
+
+    logger.info(f"Driver {driver.full_name} completed {order.order_number} and forwarded proof to sales group.")
+
+    # Confirm to driver
+    import html
+    hotel_name = order.hotel.name if order.hotel else "—"
+    text = (
+        f"🎉 <b>Delivery Completed Successfully!</b>\n\n"
+        f"🆔 <b>Order</b>: <code>{html.escape(str(order.order_number))}</code>\n"
+        f"🏨 <b>Hotel</b>: {html.escape(str(hotel_name))}\n"
+        f"⏱ <b>Accepted</b>: {_fmt_time(order.accepted_at)}\n"
+        f"✅ <b>Delivered</b>: {_fmt_time(order.delivered_at)}\n\n"
+        f"📦 <b>Delivered Products / Notes</b>:\n{html.escape(str(items_summary))}\n\n"
+        f"📤 <i>Proof of delivery automatically forwarded to the Sales Team!</i>"
+    )
+
+    if isinstance(message_or_callback, CallbackQuery):
+        await safe_edit_text_or_caption(message_or_callback, text, parse_mode="HTML")
+    else:
+        await message_or_callback.answer(text, parse_mode="HTML")
 
 DRIVER_EXPORT_BTNS = [
     "📊 Export Deliveries (Excel)", "📊 Export Deliveries", "📊 Export Data",
