@@ -18,7 +18,8 @@ async def show_contact_support(message: Message, session: AsyncSession, lang: st
         f"{t('support_title', lang)}\n\n"
         f"{t('support_phone_label', lang)}: `{support['phone']}`\n"
         f"{t('support_email_label', lang)}: `{support['email']}`\n"
-        f"{t('support_telegram_label', lang)}: [@{support['telegram_username']}]({support['telegram_link']})"
+        f"{t('support_telegram_label', lang)}: [@{support['telegram_username']}]({support['telegram_link']})\n\n"
+        f"👨‍💻 Developed by [Yusuf Mohammed](https://yusuf-mohammed.vercel.app/)"
     )
 
     await message.answer(
@@ -27,3 +28,4 @@ async def show_contact_support(message: Message, session: AsyncSession, lang: st
         parse_mode="Markdown",
         disable_web_page_preview=True
     )
+
