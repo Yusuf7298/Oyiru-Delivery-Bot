@@ -119,8 +119,8 @@ async def receive_description(message: Message, state: FSMContext):
     await state.update_data(return_description=description)
     await state.set_state(OrderState.waiting_for_return_photo)
     await message.answer(
-        "📷 Optional: Send a photo of the returned items\n\n"
-        "Or tap ⏭ Skip Photo to continue without one.",
+        "📷 *Please send a proof photo of the returned items:*\n\n"
+        "_(Upload a photo of the damaged or incorrect items for our Quality Control team, or tap ⏭ Skip Photo to proceed without a photo)_",
         reply_markup=_skip_photo_keyboard(),
         parse_mode="Markdown",
     )

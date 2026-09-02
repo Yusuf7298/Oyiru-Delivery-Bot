@@ -273,8 +273,6 @@ async def notify_new_order(bot: Bot, order, customer):
         + _order_detail_block(order, customer)
     )
     targets = {
-        *SUPER_ADMIN_IDS,
-        ADMIN_ID,
         ORDERS_GROUP_ID,
         STORE_MANAGERS_GROUP_ID,
         INVENTORY_GROUP_ID,
@@ -386,26 +384,6 @@ async def notify_customer_status_update(bot: Bot, order, customer_telegram_id: i
                 InlineKeyboardButton(text="⭐ 5", callback_data=f"rate_order:{order.id}:5"),
             ]]
         )
-        group_text = (
-            "✅ Order Delivered\n\n"
-            + _order_detail_block(order)
-        )
-        targets = {
-            *SUPER_ADMIN_IDS,
-            ADMIN_ID,
-            ORDERS_GROUP_ID,
-            STORE_MANAGERS_GROUP_ID,
-            SALES_MANAGERS_GROUP_ID
-        }
-        await _broadcast_order(
-            bot,
-            targets,
-            group_text,
-            telegram_file_id=getattr(order, "telegram_file_id", None),
-            file_path=getattr(order, "file_path", None),
-            file_type=getattr(order, "file_type", None),
-            parse_mode="Markdown",
-        )
 
     await _send(bot, customer_telegram_id, text, parse_mode="Markdown", reply_markup=reply_markup)
 
@@ -468,7 +446,7 @@ async def notify_sales_managers(bot: Bot, order, action: str):
         f"📊 Sales Monitor — {action}\n\n"
         + _order_detail_block(order)
     )
-    targets = {*SUPER_ADMIN_IDS, ADMIN_ID, SALES_MANAGERS_GROUP_ID}
+    targets = {SALES_MANAGERS_GROUP_ID}
     await _broadcast_order(
         bot,
         targets,
@@ -514,7 +492,7 @@ async def notify_sales_delivery_completed(
         f"{notes_line}"
     )
 
-    targets = _extract_chat_ids({*SUPER_ADMIN_IDS, ADMIN_ID, SALES_MANAGERS_GROUP_ID, OPERATIONS_GROUP_ID})
+    targets = _extract_chat_ids({SALES_MANAGERS_GROUP_ID, OPERATIONS_GROUP_ID})
     for cid in targets:
         if photo_file_id:
             try:
@@ -550,7 +528,7 @@ async def notify_operations(bot: Bot, order, rating: int, feedback: str = None):
     if feedback:
         text += f"💬 <b>Feedback</b>: {html.escape(str(feedback))}\n"
 
-    targets = {*SUPER_ADMIN_IDS, ADMIN_ID, QUALITY_CONTROL_GROUP_ID, OPERATIONS_GROUP_ID}
+    targets = {QUALITY_CONTROL_GROUP_ID, OPERATIONS_GROUP_ID}
     await _broadcast(bot, targets, text, parse_mode="HTML")
 
 
@@ -581,7 +559,7 @@ async def notify_returned_products(bot: Bot, order, description: str, photo_file
         f"📦 <b>Returned Items / Reason</b>:\n{html.escape(str(description))}"
     )
 
-    targets = _extract_chat_ids({*SUPER_ADMIN_IDS, ADMIN_ID, QUALITY_CONTROL_GROUP_ID, OPERATIONS_GROUP_ID})
+    targets = _extract_chat_ids({QUALITY_CONTROL_GROUP_ID, OPERATIONS_GROUP_ID})
     for cid in targets:
         if photo_file_id:
             try:
@@ -640,7 +618,7 @@ async def notify_quality_control(
     if returned_items:
         text += f"🔄 <b>Returned Items</b>:\n{html.escape(str(returned_items))}\n"
 
-    targets = _extract_chat_ids({*SUPER_ADMIN_IDS, ADMIN_ID, QUALITY_CONTROL_GROUP_ID, OPERATIONS_GROUP_ID})
+    targets = _extract_chat_ids({QUALITY_CONTROL_GROUP_ID, OPERATIONS_GROUP_ID})
     for cid in targets:
         if photo_file_id:
             try:
@@ -656,4 +634,5 @@ async def notify_quality_control(
                 logging.warning(f"QC photo send to {cid} failed: {e}")
 
         await _send(bot, cid, text, parse_mode="HTML")
+
 

@@ -144,5 +144,6 @@
     "btn_store_drivers": "🚚 Drivers",
     "select_hotel_title": "🏨 *Select Your Hotel*\n\nPlease choose your hotel to begin:",
     "btn_change_hotel": "🏨 Change Hotel",
-    "btn_confirm_ordered_items": "✅ Confirm All Ordered Items Delivered"
+    "btn_confirm_ordered_items": "✅ Confirm All Ordered Items Delivered",
+    "delivery_proof_prompt": "📦 *Delivery Confirmation for Order {order_number}*\n\n🏨 Hotel: *{hotel_name}*\n\n📋 *Ordered Items Reference*:\n{items_summary}\n\n👉 *Please submit confirmation using EITHER a photo OR a written list (do not send both):*\n1️⃣ ✍️ *Option 1 (Write List)*: Send a text message listing the delivered products\n2️⃣ 📷 *Option 2 (Photo Proof)*: Send a photo proof of the delivery or signed receipt\n\n_(Submitting either one completes the delivery and automatically forwards to the Sales Team)_"
 }

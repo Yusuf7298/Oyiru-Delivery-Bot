@@ -306,14 +306,12 @@ async def driver_complete_prompt(callback: CallbackQuery, state: FSMContext, ses
 
     await callback.answer()
     hotel_name = order.hotel.name if order.hotel else "—"
-    text = (
-        f"📦 *Delivery Confirmation for Order {order.order_number}*\n\n"
-        f"🏨 Hotel: *{hotel_name}*\n\n"
-        f"📋 *Ordered Items Reference*:\n{items_summary}\n\n"
-        "👉 *To complete delivery, please submit confirmation:*\n"
-        "1️⃣ ✍️ *Type & send the delivered products list* (e.g. `Tomato 50 KG, Onion 30 KG delivered`)\n"
-        "2️⃣ 📷 *Or upload a photo proof* of the delivered items or signed delivery slip\n\n"
-        "_(Your confirmation will be automatically forwarded to the Sales Team)_"
+    text = t(
+        "delivery_proof_prompt",
+        lang,
+        order_number=order.order_number,
+        hotel_name=hotel_name,
+        items_summary=items_summary,
     )
 
     await safe_edit_text_or_caption(
@@ -322,6 +320,7 @@ async def driver_complete_prompt(callback: CallbackQuery, state: FSMContext, ses
         reply_markup=delivery_proof_keyboard(order.id, lang=lang),
         parse_mode="Markdown",
     )
+
 
 
 @router.message(OrderState.waiting_for_delivery_proof, F.photo)
