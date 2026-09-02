@@ -188,19 +188,20 @@ async def show_upload_review(message: Message, state: FSMContext, session: Async
     note = data.get("note")
     file_label = FILE_TYPE_LABELS.get(file_type, "📎 File")
 
+    import html
     rev_title = t("order_review_title", lang)
     h_lbl = t("hotel_label", lang)
     c_lbl = t("customer_label", lang)
     n_lbl = t("note_label", lang)
 
     text = (
-        f"{rev_title}\n\n"
-        f"🆔 Order Number: _Will be assigned on submit_\n"
-        f"{h_lbl}: {hotel_name}\n"
-        f"{c_lbl}: {customer.full_name if customer else '—'}\n\n"
-        f"📁 Uploaded File:\n"
-        f"  {file_label}  —  `{original_filename}`\n\n"
-        f"{n_lbl}: {note or '—'}"
+        f"📋 <b>{html.escape(str(rev_title))}</b>\n\n"
+        f"🆔 <b>Order Number</b>: <i>Will be assigned on submit</i>\n"
+        f"🏨 <b>{html.escape(str(h_lbl))}</b>: {html.escape(str(hotel_name))}\n"
+        f"👤 <b>{html.escape(str(c_lbl))}</b>: {html.escape(str(customer.full_name if customer else '—'))}\n\n"
+        f"📁 <b>Uploaded File</b>:\n"
+        f"  {html.escape(str(file_label))} — <code>{html.escape(str(original_filename))}</code>\n\n"
+        f"📝 <b>{html.escape(str(n_lbl))}</b>: {html.escape(str(note or '—'))}"
     )
 
     sent = False
@@ -211,7 +212,7 @@ async def show_upload_review(message: Message, state: FSMContext, session: Async
                     photo=telegram_file_id,
                     caption=text,
                     reply_markup=upload_review_keyboard(),
-                    parse_mode="Markdown",
+                    parse_mode="HTML",
                 )
                 sent = True
             else:
@@ -219,11 +220,30 @@ async def show_upload_review(message: Message, state: FSMContext, session: Async
                     document=telegram_file_id,
                     caption=text,
                     reply_markup=upload_review_keyboard(),
-                    parse_mode="Markdown",
+                    parse_mode="HTML",
                 )
                 sent = True
         except Exception as e:
             logger.warning(f"Sending photo/doc review via telegram_file_id failed: {e}")
+            try:
+                if file_type == "photo":
+                    await message.answer_photo(
+                        photo=telegram_file_id,
+                        caption=text,
+                        reply_markup=upload_review_keyboard(),
+                        parse_mode=None,
+                    )
+                    sent = True
+                else:
+                    await message.answer_document(
+                        document=telegram_file_id,
+                        caption=text,
+                        reply_markup=upload_review_keyboard(),
+                        parse_mode=None,
+                    )
+                    sent = True
+            except Exception:
+                pass
 
     if not sent and file_path:
         full_path = os.path.join(os.getcwd(), file_path) if not os.path.isabs(file_path) else file_path
@@ -236,7 +256,7 @@ async def show_upload_review(message: Message, state: FSMContext, session: Async
                         photo=file_input,
                         caption=text,
                         reply_markup=upload_review_keyboard(),
-                        parse_mode="Markdown",
+                        parse_mode="HTML",
                     )
                     sent = True
                 else:
@@ -244,14 +264,36 @@ async def show_upload_review(message: Message, state: FSMContext, session: Async
                         document=file_input,
                         caption=text,
                         reply_markup=upload_review_keyboard(),
-                        parse_mode="Markdown",
+                        parse_mode="HTML",
                     )
                     sent = True
             except Exception as e:
                 logger.warning(f"Sending photo/doc review via FSInputFile failed: {e}")
+                try:
+                    if file_type == "photo":
+                        await message.answer_photo(
+                            photo=file_input,
+                            caption=text,
+                            reply_markup=upload_review_keyboard(),
+                            parse_mode=None,
+                        )
+                        sent = True
+                    else:
+                        await message.answer_document(
+                            document=file_input,
+                            caption=text,
+                            reply_markup=upload_review_keyboard(),
+                            parse_mode=None,
+                        )
+                        sent = True
+                except Exception:
+                    pass
 
     if not sent:
-        await message.answer(text, reply_markup=upload_review_keyboard(), parse_mode="Markdown")
+        try:
+            await message.answer(text, reply_markup=upload_review_keyboard(), parse_mode="HTML")
+        except Exception:
+            await message.answer(text, reply_markup=upload_review_keyboard(), parse_mode=None)
 
     await state.set_state(OrderState.reviewing_uploaded_order)
 
