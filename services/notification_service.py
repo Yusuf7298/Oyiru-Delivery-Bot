@@ -547,10 +547,16 @@ async def notify_operations(bot: Bot, order, rating: int, feedback: str = None):
 
 async def notify_returned_products(bot: Bot, order, description: str, photo_file_id: str = None, customer = None): # type: ignore
     import html
-    order_num = getattr(order, "order_number", "—") if order else "—"
-    hotel_name = order.hotel.name if order and getattr(order, "hotel", None) else "—"
     if not customer and order and getattr(order, "customer", None):
         customer = order.customer
+
+    order_num = getattr(order, "order_number", None) or "—"
+    hotel_name = "—"
+    if order and getattr(order, "hotel", None) and getattr(order.hotel, "name", None):
+        hotel_name = order.hotel.name
+    elif customer and getattr(customer, "hotel", None) and getattr(customer.hotel, "name", None):
+        hotel_name = customer.hotel.name
+
     cust_name = customer.full_name if customer else "—"
 
     driver_name = getattr(order, "driver_name", None) if order else None
@@ -600,10 +606,16 @@ async def notify_quality_control(
     customer = None,
 ):
     import html
-    order_num = getattr(order, "order_number", "—") if order else "—"
-    hotel_name = order.hotel.name if order and getattr(order, "hotel", None) else "—"
     if not customer and order and getattr(order, "customer", None):
         customer = order.customer
+
+    order_num = getattr(order, "order_number", None) or "—"
+    hotel_name = "—"
+    if order and getattr(order, "hotel", None) and getattr(order.hotel, "name", None):
+        hotel_name = order.hotel.name
+    elif customer and getattr(customer, "hotel", None) and getattr(customer.hotel, "name", None):
+        hotel_name = customer.hotel.name
+
     cust_name = customer.full_name if customer else "—"
 
     driver_name = getattr(order, "driver_name", None) if order else None

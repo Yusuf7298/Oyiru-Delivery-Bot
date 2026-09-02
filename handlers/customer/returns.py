@@ -155,7 +155,33 @@ async def _save_and_notify(message: Message, state: FSMContext,
     description = data.get("return_description", "")
     await state.clear()
 
+    tid = telegram_id or (message.from_user.id if message.from_user else message.chat.id)
+    user_repo = UserRepository(session)
+    customer = await user_repo.get_by_telegram_id(tid)
+
     order_id_int = int(order_id) if order_id else None
+    order_repo = OrderRepository(session)
+    order = await order_repo.get_order(order_id_int) if order_id_int else None
+
+    # Fallback to customer's latest order if specific order wasn't saved in state
+    if not order and customer:
+        order = await order_repo.get_last_order(customer.id)
+        if order:
+            order_id_int = order.id
+
+    # Populate hotel if needed
+    if customer and customer.hotel_id and not getattr(customer, "hotel", None):
+        from database.repositories.hotel_repository import HotelRepository
+        hotel_repo = HotelRepository(session)
+        customer.hotel = await hotel_repo.get_by_id(customer.hotel_id)
+
+    if order and order.hotel_id and not getattr(order, "hotel", None):
+        from database.repositories.hotel_repository import HotelRepository
+        hotel_repo = HotelRepository(session)
+        order.hotel = await hotel_repo.get_by_id(order.hotel_id)
+    elif order and customer and getattr(customer, "hotel", None) and not getattr(order, "hotel", None):
+        order.hotel = customer.hotel
+
     returned = ReturnedItem(
         order_id=order_id_int,
         description=description,
@@ -163,13 +189,6 @@ async def _save_and_notify(message: Message, state: FSMContext,
     )
     ri_repo = ReturnedItemRepository(session)
     await ri_repo.create(returned)
-
-    order_repo = OrderRepository(session)
-    order = await order_repo.get_order(order_id_int) if order_id_int else None
-
-    tid = telegram_id or (message.from_user.id if message.from_user else message.chat.id)
-    user_repo = UserRepository(session)
-    customer = await user_repo.get_by_telegram_id(tid)
 
     try:
         await notify_returned_products(
@@ -180,7 +199,7 @@ async def _save_and_notify(message: Message, state: FSMContext,
             customer=customer,
         )
     except Exception as e:
-        logger.error(f"QC notification failed for return on order {order_id_int}: {e}")
+        logger.error(f"Notification failed for return on order {order_id_int}: {e}")
 
     user_lang = getattr(customer, "language", "en") or "en"
     role_val = customer.role.value if customer and hasattr(customer.role, "value") else (str(customer.role) if customer else "")
