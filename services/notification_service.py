@@ -8,6 +8,11 @@ try:
     from config.settings import ( # type: ignore
         ADMIN_ID,
         SUPER_ADMIN_IDS,
+        OYIRU_STORE_GROUP_ID,
+        OYIRU_PURCHASE_GROUP_ID,
+        OYIRU_DELIVERY_CONFIRMATION_GROUP_ID,
+        OYIRU_FINANCE_GROUP_ID,
+        OYIRU_FEEDBACK_MANAGEMENT_GROUP_ID,
         ORDERS_GROUP_ID,
         STORE_MANAGERS_GROUP_ID,
         INVENTORY_GROUP_ID,
@@ -16,14 +21,20 @@ try:
         OPERATIONS_GROUP_ID,
     )
 except Exception:
-    ADMIN_ID                 = os.getenv("ADMIN_ID", "8223004316")
-    SUPER_ADMIN_IDS          = {str(ADMIN_ID).strip(), "7269164159"}
-    ORDERS_GROUP_ID          = os.getenv("ORDERS_GROUP_ID",          ADMIN_ID)
-    STORE_MANAGERS_GROUP_ID  = os.getenv("STORE_MANAGERS_GROUP_ID",  ADMIN_ID)
-    INVENTORY_GROUP_ID       = os.getenv("INVENTORY_GROUP_ID",       ADMIN_ID)
-    SALES_MANAGERS_GROUP_ID  = os.getenv("SALES_MANAGERS_GROUP_ID",  ADMIN_ID)
-    QUALITY_CONTROL_GROUP_ID = os.getenv("QUALITY_CONTROL_GROUP_ID", ADMIN_ID)
-    OPERATIONS_GROUP_ID      = os.getenv("OPERATIONS_GROUP_ID",      ADMIN_ID)
+    ADMIN_ID                             = os.getenv("ADMIN_ID", "8223004316")
+    SUPER_ADMIN_IDS                      = {str(ADMIN_ID).strip(), "7269164159"}
+    OYIRU_STORE_GROUP_ID                 = os.getenv("OYIRU_STORE_GROUP_ID", os.getenv("STORE_MANAGERS_GROUP_ID", ADMIN_ID))
+    OYIRU_PURCHASE_GROUP_ID              = os.getenv("OYIRU_PURCHASE_GROUP_ID", os.getenv("INVENTORY_GROUP_ID", os.getenv("ORDERS_GROUP_ID", ADMIN_ID)))
+    OYIRU_DELIVERY_CONFIRMATION_GROUP_ID = os.getenv("OYIRU_DELIVERY_CONFIRMATION_GROUP_ID", os.getenv("OPERATIONS_GROUP_ID", ADMIN_ID))
+    OYIRU_FINANCE_GROUP_ID               = os.getenv("OYIRU_FINANCE_GROUP_ID", os.getenv("SALES_MANAGERS_GROUP_ID", ADMIN_ID))
+    OYIRU_FEEDBACK_MANAGEMENT_GROUP_ID   = os.getenv("OYIRU_FEEDBACK_MANAGEMENT_GROUP_ID", os.getenv("QUALITY_CONTROL_GROUP_ID", ADMIN_ID))
+    ORDERS_GROUP_ID                      = OYIRU_PURCHASE_GROUP_ID
+    STORE_MANAGERS_GROUP_ID              = OYIRU_STORE_GROUP_ID
+    INVENTORY_GROUP_ID                   = OYIRU_PURCHASE_GROUP_ID
+    SALES_MANAGERS_GROUP_ID              = OYIRU_FINANCE_GROUP_ID
+    QUALITY_CONTROL_GROUP_ID             = OYIRU_FEEDBACK_MANAGEMENT_GROUP_ID
+    OPERATIONS_GROUP_ID                  = OYIRU_DELIVERY_CONFIRMATION_GROUP_ID
+
 
 def _now() -> str:
     return datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
@@ -272,11 +283,11 @@ async def notify_new_order(bot: Bot, order, customer):
         "🆕 New Order Submitted\n\n"
         + _order_detail_block(order, customer)
     )
-    targets = {
-        ORDERS_GROUP_ID,
-        STORE_MANAGERS_GROUP_ID,
-        INVENTORY_GROUP_ID,
-    }
+    # OyruStore and OyruPurchase only when customers submitted their orders
+    targets = _extract_chat_ids({
+        OYIRU_STORE_GROUP_ID,
+        OYIRU_PURCHASE_GROUP_ID,
+    })
     await _broadcast_order(
         bot,
         targets,
@@ -446,7 +457,7 @@ async def notify_sales_managers(bot: Bot, order, action: str):
         f"📊 Sales Monitor — {action}\n\n"
         + _order_detail_block(order)
     )
-    targets = {SALES_MANAGERS_GROUP_ID}
+    targets = _extract_chat_ids({OYIRU_FINANCE_GROUP_ID})
     await _broadcast_order(
         bot,
         targets,
@@ -492,7 +503,8 @@ async def notify_sales_delivery_completed(
         f"{notes_line}"
     )
 
-    targets = _extract_chat_ids({SALES_MANAGERS_GROUP_ID, OPERATIONS_GROUP_ID})
+    # Oyru Delivery Conformations and OyiruFinance only when delivery submitted the confirmations of orders
+    targets = _extract_chat_ids({OYIRU_DELIVERY_CONFIRMATION_GROUP_ID, OYIRU_FINANCE_GROUP_ID})
     for cid in targets:
         if photo_file_id:
             try:
@@ -528,7 +540,8 @@ async def notify_operations(bot: Bot, order, rating: int, feedback: str = None):
     if feedback:
         text += f"💬 <b>Feedback</b>: {html.escape(str(feedback))}\n"
 
-    targets = {QUALITY_CONTROL_GROUP_ID, OPERATIONS_GROUP_ID}
+    # OyruFeedback Management only when customers submitted their feedback and rate only
+    targets = _extract_chat_ids({OYIRU_FEEDBACK_MANAGEMENT_GROUP_ID})
     await _broadcast(bot, targets, text, parse_mode="HTML")
 
 
@@ -559,7 +572,8 @@ async def notify_returned_products(bot: Bot, order, description: str, photo_file
         f"📦 <b>Returned Items / Reason</b>:\n{html.escape(str(description))}"
     )
 
-    targets = _extract_chat_ids({QUALITY_CONTROL_GROUP_ID, OPERATIONS_GROUP_ID})
+    # OyruPurchase when customers return products (and OyruFeedback Management)
+    targets = _extract_chat_ids({OYIRU_PURCHASE_GROUP_ID, OYIRU_FEEDBACK_MANAGEMENT_GROUP_ID})
     for cid in targets:
         if photo_file_id:
             try:
@@ -572,7 +586,7 @@ async def notify_returned_products(bot: Bot, order, description: str, photo_file
                 )
                 continue
             except Exception as e:
-                logging.warning(f"QC photo to {cid} failed: {e}")
+                logging.warning(f"Return photo to {cid} failed: {e}")
 
         await _send(bot, cid, text, parse_mode="HTML")
 
@@ -602,7 +616,7 @@ async def notify_quality_control(
         driver_line += f" (<code>{html.escape(str(driver_phone))}</code>)"
 
     text = (
-        f"🔒 <b>Quality Control Report</b>\n\n"
+        f"🔒 <b>Feedback & Rating Report</b>\n\n"
         f"🆔 <b>Order</b>: <code>{html.escape(str(order_num))}</code>\n"
         f"🏨 <b>Hotel</b>: {html.escape(str(hotel_name))}\n"
         f"👤 <b>Customer</b>: {html.escape(str(cust_name))}"
@@ -618,7 +632,8 @@ async def notify_quality_control(
     if returned_items:
         text += f"🔄 <b>Returned Items</b>:\n{html.escape(str(returned_items))}\n"
 
-    targets = _extract_chat_ids({QUALITY_CONTROL_GROUP_ID, OPERATIONS_GROUP_ID})
+    # OyruFeedback Management only when customers submitted their feedback and rate only
+    targets = _extract_chat_ids({OYIRU_FEEDBACK_MANAGEMENT_GROUP_ID})
     for cid in targets:
         if photo_file_id:
             try:
@@ -634,5 +649,6 @@ async def notify_quality_control(
                 logging.warning(f"QC photo send to {cid} failed: {e}")
 
         await _send(bot, cid, text, parse_mode="HTML")
+
 
 
