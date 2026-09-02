@@ -261,7 +261,6 @@ async def process_driver_name(message: Message, state: FSMContext):
         # Notify Customer
         if order.customer:
             await notify_customer_status_update(message.bot, order, order.customer.telegram_id) # type: ignore
-        await notify_sales_managers(message.bot, order, "Approved") # type: ignore
         await message.answer(f"✅ Order {order.order_number} approved and driver '{driver_name}' assigned successfully.")
         text = (
             f"📦 Order: {order.order_number}\n"
@@ -303,8 +302,6 @@ async def update_order_status(callback: CallbackQuery):
         if order.customer:
             await notify_customer_status_update(callback.bot, order, order.customer.telegram_id) # type: ignore
 
-        if OrderStatus[status] == OrderStatus.DELIVERED:
-            await notify_sales_managers(callback.bot, order, "Delivered") # type: ignore
         order = await repo.get_order(order.id)
         text = (
             f"📦 Order: {order.order_number}\n" # type: ignore

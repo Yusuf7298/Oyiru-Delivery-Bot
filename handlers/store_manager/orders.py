@@ -258,12 +258,6 @@ async def approve_driver_name(message: Message, state: FSMContext, session: Asyn
         except Exception as e:
             logger.error(f"Failed to notify customer: {e}")
 
-    # Notify sales managers
-    try:
-        await notify_sales_managers(message.bot, order, "Approved") # type: ignore
-    except Exception as e:
-        logger.error(f"Failed to notify sales managers: {e}")
-
     await message.answer(
         f"✅ Order {order.order_number} approved.\n" # type: ignore
         f"🚗 Driver: {order.driver_name}", # type: ignore
@@ -370,13 +364,6 @@ async def update_status(callback: CallbackQuery, session: AsyncSession):
             await notify_customer_status_update(callback.bot, order, order.customer.telegram_id) # type: ignore
         except Exception as e:
             logger.error(f"Customer notification failed: {e}")
-
-    # Notify sales managers on Delivered
-    if order and new_status == OrderStatus.DELIVERED:
-        try:
-            await notify_sales_managers(callback.bot, order, "Delivered") # type: ignore
-        except Exception as e:
-            logger.error(f"Sales manager notification failed: {e}")
 
     from utils.helpers import safe_edit_text_or_caption
     await safe_edit_text_or_caption(

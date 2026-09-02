@@ -161,12 +161,6 @@ async def _do_assign(callback: CallbackQuery, session: AsyncSession,
         except Exception as e:
             logging.error(f"Failed to notify customer: {e}")
 
-    # 3. Notify sales managers
-    try:
-        await notify_sales_managers(callback.bot, order, "Approved & Driver Assigned") # type: ignore
-    except Exception as e:
-        logging.error(f"Failed to notify sales managers: {e}")
-
     from keyboards.order_status import order_status_keyboard
     from utils.helpers import safe_edit_text_or_caption
     
