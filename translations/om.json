@@ -144,5 +144,8 @@
     "select_hotel_title": "🏨 *Hoteela Keessan Filadhaa*\n\nJalqabuuf maaloo hoteela keessan filadhaa:",
     "btn_change_hotel": "🏨 Hoteela Jijjiiri",
     "btn_confirm_ordered_items": "✅ Oomishaalee Ajajaman Hunda Geessisuu Mirkaneessi",
-    "delivery_proof_prompt": "📦 *Mirkaneessa Geessisuu Ajaja {order_number}*\n\n🏨 Hoteela: *{hotel_name}*\n\n📋 *Tarree Oomishaalee Ajajaman*:\n{items_summary}\n\n👉 *Maaloo filannoo lamaan keessaa ISA TOKKO QOFA ergaa (lamaanuu walitti hin erginaa):*\n1️⃣ ✍️ *Filannoo 1 (Barreeffamaan)*: Oomishaalee geessitan barreeffamaan ergaa\n2️⃣ 📷 *Filannoo 2 (Suuraadhaan)*: Suuraa mirkaneessaa ykn nagahee mallatteeffame ergaa\n\n_(Isaan keessaa isa tokko erguun geessisuu xumura, akkasumas garee gurgurtaaf ni dabarsa)_"
+    "delivery_proof_prompt": "📦 *Mirkaneessa Geessisuu Ajaja {order_number}*\n\n🏨 Hoteela: *{hotel_name}*\n\n📋 *Tarree Oomishaalee Ajajaman*:\n{items_summary}\n\n👉 *Maaloo filannoo lamaan keessaa ISA TOKKO QOFA ergaa (lamaanuu walitti hin erginaa):*\n1️⃣ ✍️ *Filannoo 1 (Barreeffamaan)*: Oomishaalee geessitan barreeffamaan ergaa\n2️⃣ 📷 *Filannoo 2 (Suuraadhaan)*: Suuraa mirkaneessaa ykn nagahee mallatteeffame ergaa\n\n_(Isaan keessaa isa tokko erguun geessisuu xumura, akkasumas garee gurgurtaaf ni dabarsa)_",
+    "btn_feedback": "💬 Yaada",
+    "feedback_prompt": "💬 *Yaada Maamilaa*\n\nMaaloo yaada, qeeqa ykn yaada foyya'iinsaa keessan armaan gaditti barreessaa:\n\n_(Yaadni keessan kallattiin gara garee qulqullina to'atuutti ni ergama)_",
+    "feedback_submitted": "✅ *Yaada keessaniif galatoomaa!*\n\nYaadni keessan kallattiin gara garee To'annoo Qulqullinaatti ergamerra."
 }

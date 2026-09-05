@@ -9,6 +9,7 @@ def customer_menu(lang: str = "en"):
             [KeyboardButton(text=t("btn_my_orders", lang)), KeyboardButton(text=t("btn_export_orders", lang))],
             [KeyboardButton(text=t("btn_profile", lang)), KeyboardButton(text=t("btn_language", lang))],
             [KeyboardButton(text=t("btn_contact_support", lang)), KeyboardButton(text=t("btn_help", lang))],
+            [KeyboardButton(text=t("btn_feedback", lang))],
         ],
         resize_keyboard=True,
     )
@@ -20,6 +21,7 @@ def customer_reorder_menu(lang: str = "en"):
             [KeyboardButton(text=t("btn_my_orders", lang)), KeyboardButton(text=t("btn_export_orders", lang))],
             [KeyboardButton(text=t("btn_profile", lang)), KeyboardButton(text=t("btn_language", lang))],
             [KeyboardButton(text=t("btn_contact_support", lang)), KeyboardButton(text=t("btn_help", lang))],
+            [KeyboardButton(text=t("btn_feedback", lang))],
         ],
         resize_keyboard=True,
     )

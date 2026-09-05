@@ -8,6 +8,7 @@ class OrderState(StatesGroup):
     reviewing_uploaded_order = State()
     waiting_for_rating       = State()
     waiting_for_feedback     = State()
+    waiting_for_direct_feedback = State()
     waiting_for_returns_post_feedback = State()
     waiting_for_return_order   = State()   
     waiting_for_return_desc    = State()  

@@ -26,6 +26,7 @@ _KNOWN_BUTTONS = {
     # Customer Profile & Help & Language
     "👤 Profile", "👤 My Profile", "👤 መገለጫ", "👤 መገለጫዬ", "👤 Profaayilii Koo",
     "❓ Help", "❓ እርዳታ", "❓ Gargaarsa",
+    "💬 Feedback", "💬 አስተያየት", "💬 Yaada",
     "🌐 Language", "🌐 ቋንቋ / Language", "🌐 Afaan / Language", "🌐 Language / ቋንቋ / Afaan",
     # Delivery
     "📦 Available Deliveries", "📦 Geessituuwwan Argaman", "📦 ያሉ ማድረሻዎች",

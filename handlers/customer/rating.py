@@ -11,6 +11,7 @@ from states.order import OrderState
 from keyboards.customers import customer_menu, customer_reorder_menu
 from filters.role_filter import RoleFilter
 from database.models.order import  OrderStatus
+from utils.i18n import t
 
 router = Router()
 router.message.filter(RoleFilter(["customer", "hotel"]))
@@ -45,6 +46,48 @@ def _returns_prompt() -> str:
 
 
 from utils.helpers import safe_edit_text_or_caption
+
+@router.message(F.text.in_({"💬 Feedback", "💬 አስተያየት", "💬 Yaada"}))
+async def start_direct_feedback(message: Message, state: FSMContext, session: AsyncSession):
+    user_repo = UserRepository(session)
+    customer = await user_repo.get_by_telegram_id(message.from_user.id)
+    user_lang = getattr(customer, "language", "en") or "en"
+
+    await state.set_state(OrderState.waiting_for_direct_feedback)
+    await message.answer(
+        t("feedback_prompt", user_lang),
+        parse_mode="Markdown",
+    )
+
+@router.message(OrderState.waiting_for_direct_feedback, F.text)
+async def submit_direct_feedback(message: Message, state: FSMContext, session: AsyncSession):
+    feedback_text = (message.text or "").strip()
+    if not feedback_text:
+        await message.answer("❌ Please enter your feedback text.")
+        return
+
+    user_repo = UserRepository(session)
+    customer = await user_repo.get_by_telegram_id(message.from_user.id)
+    user_lang = getattr(customer, "language", "en") or "en"
+
+    await state.clear()
+    await notify_quality_control(
+        message.bot,
+        order=None,
+        rating=None,
+        feedback=feedback_text,
+        returned_items=None,
+        photo_file_id=None,
+        customer=customer,
+    )
+
+    last = await OrderRepository(session).get_last_order(customer.id) if customer else None
+    menu = customer_reorder_menu(user_lang) if last else customer_menu(user_lang)
+    await message.answer(
+        t("feedback_submitted", user_lang),
+        reply_markup=menu,
+        parse_mode="Markdown",
+    )
 
 @router.callback_query(F.data.startswith("rate_order:"))
 async def receive_rating(callback: CallbackQuery, state: FSMContext, session: AsyncSession) -> None:
