@@ -627,14 +627,23 @@ async def notify_quality_control(
     if driver_phone:
         driver_line += f" (<code>{html.escape(str(driver_phone))}</code>)"
 
-    text = (
-        f"🔒 <b>Feedback & Rating Report</b>\n\n"
-        f"🆔 <b>Order</b>: <code>{html.escape(str(order_num))}</code>\n"
-        f"🏨 <b>Hotel</b>: {html.escape(str(hotel_name))}\n"
-        f"👤 <b>Customer</b>: {html.escape(str(cust_name))}"
-        f"{driver_line}\n"
-        f"⏰ <b>Time</b>: {_now()}\n\n"
-    )
+    feedback_only = order is None and rating is None and returned_items is None
+    if feedback_only:
+        text = (
+            f"💬 <b>Customer Feedback Report</b>\n\n"
+            f"🏨 <b>Hotel</b>: {html.escape(str(hotel_name))}\n"
+            f"👤 <b>Customer</b>: {html.escape(str(cust_name))}\n"
+            f"⏰ <b>Time</b>: {_now()}\n\n"
+        )
+    else:
+        text = (
+            f"🔒 <b>Feedback & Rating Report</b>\n\n"
+            f"🆔 <b>Order</b>: <code>{html.escape(str(order_num))}</code>\n"
+            f"🏨 <b>Hotel</b>: {html.escape(str(hotel_name))}\n"
+            f"👤 <b>Customer</b>: {html.escape(str(cust_name))}"
+            f"{driver_line}\n"
+            f"⏰ <b>Time</b>: {_now()}\n\n"
+        )
     if rating is not None:
         stars_filled = "⭐" * rating
         stars_empty = "☆" * (5 - rating)
